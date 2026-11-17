@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>아레나 시험판</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #14181f; overflow: hidden; overscroll-behavior: none; }
+  body { font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: #f2f4f8;
+         -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+             background: rgba(12, 15, 21, .86); padding: 16px; box-sizing: border-box; overflow: auto; }
+  .overlay.hidden { display: none; }
+  .card { width: 100%; max-width: 380px; text-align: center; margin: auto; }
+  .tag { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 99px; background: #3a2f12; color: #ffcf5a; margin-bottom: 10px; }
+  h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.5px; }
+  .sub { font-size: 14px; color: #a9b2c3; margin: 0 0 16px; line-height: 1.5; }
+  ul.how { text-align: left; font-size: 14px; line-height: 1.6; color: #d5dbe7; margin: 0 0 18px; padding: 12px 14px 12px 30px;
+           background: #1e2530; border-radius: 12px; }
+  ul.how b { color: #fff; }
+  button.big { font: inherit; font-size: 19px; font-weight: 700; color: #10151c; background: #6fe3a5; border: 0; border-radius: 14px;
+               padding: 15px 0; width: 100%; touch-action: manipulation; }
+  button.big:active { transform: scale(.98); background: #58cf90; }
+  .res { font-size: 44px; font-weight: 800; margin: 0 0 6px; }
+  .res.win { color: #6fe3a5; } .res.lose { color: #ff7d7d; } .res.draw { color: #ffcf5a; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div class="overlay" id="titleScreen">
+  <div class="card">
+    <div class="tag">시험판 v0.1 · 이름·그림 모두 임시</div>
+    <h1>아레나 시험판</h1>
+    <p class="sub">컴퓨터 상대와 1:1로 한 판.<br>체력을 먼저 0으로 만들면 이깁니다.</p>
+    <ul class="how">
+      <li><b>왼쪽 아래</b>를 누른 채 끌면 이동</li>
+      <li><b>공격</b>: 연속 3번째 타격이 가장 셉니다</li>
+      <li><b>방어</b>: 누르고 있는 동안 앞쪽 공격을 막고 상대를 튕겨냅니다 (오래 누르면 풀리고, 놓으면 다시 찹니다)</li>
+      <li><b>회피</b>: 순간 이동하며 잠깐 무적</li>
+      <li>바닥의 <b>아이템</b>을 먹으면 회복·힘·속도 상승</li>
+      <li>시간이 지나면 <b>안전 구역이 줄어들고</b>, 밖에 있으면 체력이 깎입니다</li>
+    </ul>
+    <button class="big" id="startBtn">게임 시작</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="resultScreen">
+  <div class="card">
+    <div class="tag">시험판 v0.1</div>
+    <p class="res" id="resText">승리!</p>
+    <p class="sub" id="resSub"></p>
+    <button class="big" id="retryBtn">다시 하기</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+// ───────── 기본 수치 (모두 우리 식으로 새로 정한 값) ─────────
+const R0 = 300;          // 경기장 반지름(월드 단위)
+const FR = 20;           // 캐릭터 반지름
+const SPEED = 195;
+const MATCH_TIME = 120;
+const SHRINK_START = 35, SHRINK_END = 95, SHRINK_MIN = 0.45;
+const RING_DPS = 10;
+// 컴퓨터 상대 성향 (난이도 조절용)
+const AI = { guard: 0.30, dodge: 0.10, chain: 0.5, coolMin: 0.4, coolRand: 0.7, punish: 0.04 };
+const ITEM_TYPES = [
+  { id: 'heal',  label: '회복', color: '#6fe3a5', glyph: '+' },
+  { id: 'power', label: '힘',   color: '#ff9d4d', glyph: '!' },
+  { id: 'speed', label: '속도', color: '#5cc8ff', glyph: '»' },
+];
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, L = null;
+
+function layout() {
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  const hud = 52;
+  const portrait = H >= W * 0.9;
+  const ctrlH = portrait ? Math.max(170, Math.min(240, H * 0.3)) : 0;
+  const areaH = H - hud - ctrlH;
+  const pxR = Math.max(60, Math.min(W, areaH) / 2 - 6);
+  const u = Math.max(0.8, Math.min(1.25, Math.min(W, H) / 380));
+  const by = H - (portrait ? ctrlH / 2 : Math.min(H * 0.3, 110));
+  L = {
+    hud, portrait, ctrlH, pxR, u,
+    cx: W / 2, cy: hud + areaH / 2, s: pxR / (R0 + 8),
+    joyZoneTop: portrait ? H - ctrlH : hud + 10,
+    joyHome: { x: Math.max(70 * u, Math.min(W * 0.24, 110)), y: by },
+    joyR: 46 * u,
+    btn: {
+      attack: { x: W - 58 * u,  y: by + 22 * u, r: 40 * u, label: '공격', color: '#ff7d7d' },
+      guard:  { x: W - 142 * u, y: by + 40 * u, r: 31 * u, label: '방어', color: '#5cc8ff' },
+      dash:   { x: W - 122 * u, y: by - 38 * u, r: 31 * u, label: '회피', color: '#ffcf5a' },
+    },
+  };
+}
+window.addEventListener('resize', layout);
+layout();
+
+// ───────── 소리 (코드로 직접 합성 — 외부 파일 없음) ─────────
+let actx = null;
+function beep(freq, dur, type, vol) {
+  if (!actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.value = vol || 0.05;
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) {}
+}
+
+// ───────── 게임 상태 ─────────
+let G = null;
+function newFighter(x, y, color, isCpu) {
+  return { x, y, kx: 0, ky: 0, face: isCpu ? Math.PI : 0, hp: 100, color, isCpu,
+           state: 'idle', t: 0, combo: 0, lastAtkEnd: -9, hitDone: false, atkId: 0,
+           guardGauge: 1, guardLock: false, dashCd: 0, inv: 0, dashDir: 0,
+           power: 0, haste: 0, flash: 0,
+           in: { mx: 0, my: 0, attack: false, guard: false, dash: false } };
+}
+function newGame() {
+  G = {
+    mode: 'play', time: 0, shake: 0,
+    p: newFighter(-150, 0, '#4d9dff', false),
+    e: newFighter(150, 0, '#ff6b6b', true),
+    items: [], itemTimer: 4, texts: [], sparks: [],
+    ai: { cool: 0.6, guardT: 0, seenAtk: 0, strafe: 1, strafeT: 0, wait: 0 },
+    result: null,
+  };
+}
+function ringR(t) {
+  if (t <= SHRINK_START) return R0;
+  const k = Math.min(1, (t - SHRINK_START) / (SHRINK_END - SHRINK_START));
+  return R0 * (1 - (1 - SHRINK_MIN) * k);
+}
+const angDiff = (a, b) => { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+function addText(x, y, str, color) { G.texts.push({ x, y, str, color, t: 0 }); }
+
+// ───────── 전투 규칙 ─────────
+function atkTiming(f) { return f.combo === 3 ? { wind: 0.2, act: 0.32, end: 0.56 } : { wind: 0.12, act: 0.22, end: 0.4 }; }
+
+function startAttack(f, foe) {
+  if (f.state !== 'idle') return;
+  f.combo = (G.time - f.lastAtkEnd < 0.45) ? (f.combo % 3) + 1 : 1;
+  f.state = 'attack'; f.t = 0; f.hitDone = false; f.atkId++;
+  const d = Math.hypot(foe.x - f.x, foe.y - f.y);
+  if (d < 160) f.face = Math.atan2(foe.y - f.y, foe.x - f.x);   // 가까우면 상대 쪽으로 조준 보정
+  if (!f.isCpu) beep(f.combo === 3 ? 220 : 330, 0.05, 'triangle', 0.04);
+}
+function startDash(f) {
+  if (f.dashCd > 0 || (f.state !== 'idle' && f.state !== 'guard')) return;
+  const m = Math.hypot(f.in.mx, f.in.my);
+  f.dashDir = m > 0.2 ? Math.atan2(f.in.my, f.in.mx) : f.face;
+  f.state = 'dash'; f.t = 0; f.inv = 0.24; f.dashCd = 1.3;
+  if (!f.isCpu) beep(600, 0.08, 'sine', 0.05);
+}
+function resolveHit(a, d) {
+  if (d.inv > 0) { addText(d.x, d.y - 30, '회피', '#ffcf5a'); return; }
+  const heavy = a.combo === 3;
+  let dmg = (heavy ? 8 : 3) * (a.power > 0 ? 1.5 : 1);
+  const dir = Math.atan2(d.y - a.y, d.x - a.x);
+  const toAtt = Math.atan2(a.y - d.y, a.x - d.x);
+  const blocked = d.state === 'guard' && Math.abs(angDiff(toAtt, d.face)) < 1.3;
+  if (blocked) {
+    d.guardGauge -= heavy ? 0.4 : 0.15;
+    d.hp -= dmg * 0.2;
+    d.kx += Math.cos(dir) * 120; d.ky += Math.sin(dir) * 120;
+    if (d.guardGauge <= 0) {
+      d.state = 'stun'; d.t = 0.6; d.guardGauge = 0; d.guardLock = true;
+      addText(d.x, d.y - 30, '방어 깨짐!', '#ff7d7d'); beep(110, 0.2, 'sawtooth', 0.06);
+    } else {
+      a.state = 'stun'; a.t = 0.45; a.combo = 0; a.lastAtkEnd = -9; a.kx -= Math.cos(dir) * 140; a.ky -= Math.sin(dir) * 140;
+      addText(d.x, d.y - 30, '막음', '#5cc8ff'); beep(880, 0.06, 'square', 0.04);
+    }
+  } else {
+    d.hp -= dmg; d.flash = 0.15;
+    if (d.state !== 'dash') { d.state = 'stun'; d.t = heavy ? 0.32 : 0.18; }
+    if (heavy) d.inv = 0.6;   // 크게 맞은 뒤 잠깐 무적 (연속으로 계속 맞는 것 방지)
+    const kb = heavy ? 520 : 240;
+    d.kx += Math.cos(dir) * kb; d.ky += Math.sin(dir) * kb;
+    addText(d.x, d.y - 30, '-' + Math.round(dmg), heavy ? '#ffcf5a' : '#fff');
+    G.shake = heavy ? 0.22 : 0.1;
+    for (let i = 0; i < (heavy ? 10 : 5); i++) {
+      const an = dir + (Math.random() - 0.5) * 1.6, sp = 120 + Math.random() * 220;
+      G.sparks.push({ x: d.x, y: d.y, vx: Math.cos(an) * sp, vy: Math.sin(an) * sp, t: 0 });
+    }
+    beep(heavy ? 140 : 190, heavy ? 0.14 : 0.08, 'sawtooth', 0.06);
+  }
+  if (d.hp < 0) d.hp = 0;
+}
+
+function updateFighter(f, foe, dt) {
+  const inp = f.in;
+  f.dashCd = Math.max(0, f.dashCd - dt); f.inv = Math.max(0, f.inv - dt);
+  f.power = Math.max(0, f.power - dt); f.haste = Math.max(0, f.haste - dt); f.flash = Math.max(0, f.flash - dt);
+  // 방어 게이지: 누르고 있으면 줄고(최대 약 1.6초), 놓으면 다시 참. 바닥나면 절반 찰 때까지 방어 불가
+  if (f.state === 'guard') { f.guardGauge -= dt / 1.6; if (f.guardGauge <= 0) { f.guardGauge = 0; f.guardLock = true; } }
+  else f.guardGauge = Math.min(1, f.guardGauge + dt / 2.2);
+  if (f.guardLock && f.guardGauge >= 0.5) f.guardLock = false;
+  let mx = inp.mx, my = inp.my; const m = Math.hypot(mx, my);
+  if (m > 1) { mx /= m; my /= m; }
+  let sp = SPEED * (f.haste > 0 ? 1.3 : 1) * (f.isCpu ? 0.92 : 1);
+  let vx = 0, vy = 0;
+
+  if (f.state === 'stun') {
+    f.t -= dt; if (f.t <= 0) f.state = 'idle';
+  } else if (f.state === 'dash') {
+    f.t += dt; vx = Math.cos(f.dashDir) * 640; vy = Math.sin(f.dashDir) * 640;
+    if (f.t >= 0.2) f.state = 'idle';
+  } else if (f.state === 'attack') {
+    f.t += dt; const tm = atkTiming(f);
+    vx = mx * sp * 0.35; vy = my * sp * 0.35;
+    if (!f.hitDone && f.t >= tm.wind && f.t <= tm.act) {
+      const d = Math.hypot(foe.x - f.x, foe.y - f.y);
+      const an = Math.atan2(foe.y - f.y, foe.x - f.x);
+      if (d < FR * 2 + 44 && Math.abs(angDiff(an, f.face)) < 1.05) { f.hitDone = true; resolveHit(f, foe); }
+    }
+    if (f.state === 'attack' && f.t >= tm.end) { f.state = 'idle'; f.lastAtkEnd = G.time; }   // 막혀서 멈춘 경우는 건드리지 않음
+  } else {
+    // idle / guard
+    if (inp.dash) startDash(f);
+    if (f.state !== 'dash') {
+      if (inp.guard && !f.guardLock) {
+        if (f.state !== 'guard') {
+          f.state = 'guard';
+          if (Math.hypot(foe.x - f.x, foe.y - f.y) < 220) f.face = Math.atan2(foe.y - f.y, foe.x - f.x);
+        }
+        vx = mx * sp * 0.35; vy = my * sp * 0.35;
+      } else {
+        f.state = 'idle';
+        vx = mx * sp; vy = my * sp;
+        if (m > 0.15) f.face = Math.atan2(my, mx);
+        if (inp.attack) startAttack(f, foe);
+      }
+    }
+  }
+  inp.dash = false;
+
+  f.x += (vx + f.kx) * dt; f.y += (vy + f.ky) * dt;
+  const damp = Math.exp(-7 * dt); f.kx *= damp; f.ky *= damp;
+  // 바깥 벽
+  const d = Math.hypot(f.x, f.y), lim = R0 - FR;
+  if (d > lim) { f.x *= lim / d; f.y *= lim / d; }
+  // 안전 구역 밖 피해
+  if (Math.hypot(f.x, f.y) > ringR(G.time) + 2) f.hp = Math.max(0, f.hp - RING_DPS * dt);
+}
+
+function separate(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = FR * 2;
+  if (d < min && a.state !== 'dash' && b.state !== 'dash') {
+    const push = (min - d) / 2, nx = dx / d, ny = dy / d;
+    a.x -= nx * push; a.y -= ny * push; b.x += nx * push; b.y += ny * push;
+  }
+}
+
+// ───────── 컴퓨터 상대 ─────────
+function updateAI(dt) {
+  const e = G.e, p = G.p, ai = G.ai, inp = e.in;
+  inp.mx = 0; inp.my = 0; inp.attack = false;
+  ai.cool -= dt; ai.guardT -= dt; ai.strafeT -= dt; ai.wait -= dt;
+  if (ai.strafeT <= 0) { ai.strafe = Math.random() < 0.5 ? -1 : 1; ai.strafeT = 0.8 + Math.random() * 1.2; }
+  inp.guard = ai.guardT > 0;
+  const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 0.01;
+  const ring = ringR(G.time), mine = Math.hypot(e.x, e.y);
+  const reach = FR * 2 + 36;
+
+  // 상대 공격을 보고 반응 (공격마다 한 번만 판단)
+  if (p.state === 'attack' && p.atkId !== ai.seenAtk && d < reach + 30 && e.state === 'idle') {
+    ai.seenAtk = p.atkId;
+    const r = Math.random();
+    if (r < AI.guard && e.state === 'idle' && !e.guardLock) { ai.guardT = 0.5; inp.guard = true; }
+    else if (r < AI.guard + AI.dodge) { inp.mx = -dy / d * ai.strafe; inp.my = dx / d * ai.strafe; inp.dash = true; return; }
+  }
+  if (p.state === 'stun' && p.t > 0.2 && d < reach + 40) { ai.cool = Math.min(ai.cool, 0.05); ai.guardT = 0; ai.wait = 0; inp.guard = false; }   // 빈틈이 보이면 방어를 풀고 바로 반격
+  if (p.state === 'attack' && p.t > 0.2 && d < reach && Math.random() < AI.punish) ai.cool = Math.min(ai.cool, 0.03);   // 상대 공격이 끝나는 빈틈을 노림
+  if (inp.guard) return;
+
+  // 목표 정하기: 구역 밖이면 안으로 → 아이템 → 상대
+  let tx = p.x, ty = p.y, chase = true;
+  if (mine > ring - 30) { tx = 0; ty = 0; chase = false; }
+  else {
+    let best = null, bd = 1e9;
+    for (const it of G.items) {
+      const di = Math.hypot(it.x - e.x, it.y - e.y);
+      const want = it.type.id === 'heal' ? (e.hp < 70 ? di * 0.5 : 1e9) : di;
+      if (want < bd) { bd = want; best = it; }
+    }
+    if (best && bd < d * 0.9) { tx = best.x; ty = best.y; chase = false; }
+  }
+  const ex = tx - e.x, ey = ty - e.y, ed = Math.hypot(ex, ey) || 0.01;
+  if (!chase) { inp.mx = ex / ed; inp.my = ey / ed; if (d < reach && ai.cool <= 0 && e.state === 'idle') { inp.attack = true; ai.cool = 0.5; } return; }
+
+  if (d > reach - 6) {
+    inp.mx = dx / d + (-dy / d) * 0.35 * ai.strafe; inp.my = dy / d + (dx / d) * 0.35 * ai.strafe;
+  } else {
+    inp.mx = (-dy / d) * 0.5 * ai.strafe; inp.my = (dx / d) * 0.5 * ai.strafe;
+  }
+  if (d < reach && e.state === 'idle') {
+    if (p.state === 'guard' && ai.wait <= 0 && Math.random() < 0.5) ai.wait = 0.5;   // 방어 중이면 잠깐 눈치
+    if (ai.cool <= 0 && ai.wait <= 0) {
+      inp.attack = true;
+      ai.cool = e.combo >= 1 && e.combo < 3 && Math.random() < AI.chain ? 0.05 : AI.coolMin + Math.random() * AI.coolRand;
+    }
+  }
+}
+
+// ───────── 아이템 ─────────
+function updateItems(dt) {
+  G.itemTimer -= dt;
+  if (G.itemTimer <= 0 && G.items.length < 2) {
+    G.itemTimer = 5 + Math.random() * 3;
+    const r = Math.sqrt(Math.random()) * ringR(G.time) * 0.8, a = Math.random() * Math.PI * 2;
+    G.items.push({ x: Math.cos(a) * r, y: Math.sin(a) * r, type: ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)], t: 0 });
+  }
+  for (let i = G.items.length - 1; i >= 0; i--) {
+    const it = G.items[i]; it.t += dt;
+    for (const f of [G.p, G.e]) {
+      if (Math.hypot(f.x - it.x, f.y - it.y) < FR + 15) {
+        if (it.type.id === 'heal') f.hp = Math.min(100, f.hp + 25);
+        if (it.type.id === 'power') f.power = 8;
+        if (it.type.id === 'speed') f.haste = 8;
+        addText(f.x, f.y - 34, it.type.label + '↑', it.type.color);
+        if (!f.isCpu) beep(740, 0.12, 'sine', 0.06);
+        G.items.splice(i, 1); break;
+      }
+    }
+  }
+}
+
+function step(dt) {
+  if (!G || G.mode !== 'play') return;
+  G.time += dt;
+  readPlayerInput();
+  updateAI(dt);
+  updateFighter(G.p, G.e, dt);
+  updateFighter(G.e, G.p, dt);
+  separate(G.p, G.e);
+  updateItems(dt);
+  for (const t of G.texts) t.t += dt; G.texts = G.texts.filter(t => t.t < 0.8);
+  for (const s of G.sparks) { s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; } G.sparks = G.sparks.filter(s => s.t < 0.3);
+  G.shake = Math.max(0, G.shake - dt);
+  const pd = G.p.hp <= 0, ed = G.e.hp <= 0, timeUp = G.time >= MATCH_TIME;
+  if (pd || ed || timeUp) {
+    let r;
+    if (pd && ed) r = 'draw'; else if (ed) r = 'win'; else if (pd) r = 'lose';
+    else r = G.p.hp > G.e.hp ? 'win' : G.p.hp < G.e.hp ? 'lose' : 'draw';
+    endGame(r, timeUp && !pd && !ed);
+  }
+}
+
+// ───────── 입력 (터치·마우스·키보드) ─────────
+const joy = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
+const held = { attack: null, guard: null };
+const keys = {};
+let dashQueued = false;
+function hitBtn(x, y) {
+  for (const k of ['attack', 'guard', 'dash']) { const b = L.btn[k]; if (Math.hypot(x - b.x, y - b.y) < b.r * 1.3) return k; }
+  return null;
+}
+cv.addEventListener('pointerdown', ev => {
+  ev.preventDefault();
+  const x = ev.clientX, y = ev.clientY, k = hitBtn(x, y);
+  if (k === 'attack') held.attack = ev.pointerId;
+  else if (k === 'guard') held.guard = ev.pointerId;
+  else if (k === 'dash') dashQueued = true;
+  else if (joy.id === null && x < W * 0.55 && y > L.joyZoneTop) { joy.id = ev.pointerId; joy.ox = x; joy.oy = y; joy.x = 0; joy.y = 0; }
+});
+cv.addEventListener('pointermove', ev => {
+  if (ev.pointerId !== joy.id) return;
+  let dx = (ev.clientX - joy.ox) / L.joyR, dy = (ev.clientY - joy.oy) / L.joyR; const m = Math.hypot(dx, dy);
+  if (m > 1) { dx /= m; dy /= m; }
+  joy.x = dx; joy.y = dy;
+});
+function release(ev) {
+  if (ev.pointerId === joy.id) { joy.id = null; joy.x = 0; joy.y = 0; }
+  if (ev.pointerId === held.attack) held.attack = null;
+  if (ev.pointerId === held.guard) held.guard = null;
+}
+cv.addEventListener('pointerup', release); cv.addEventListener('pointercancel', release);
+cv.addEventListener('contextmenu', ev => ev.preventDefault());
+window.addEventListener('keydown', ev => { if (!keys[ev.code] && ev.code === 'KeyL') dashQueued = true; keys[ev.code] = true; });
+window.addEventListener('keyup', ev => { keys[ev.code] = false; });
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+function readPlayerInput() {
+  const inp = G.p.in;
+  let mx = joy.x, my = joy.y;
+  if (keys.KeyA || keys.ArrowLeft) mx -= 1; if (keys.KeyD || keys.ArrowRight) mx += 1;
+  if (keys.KeyW || keys.ArrowUp) my -= 1; if (keys.KeyS || keys.ArrowDown) my += 1;
+  inp.mx = mx; inp.my = my;
+  inp.attack = held.attack !== null || !!keys.KeyJ;
+  inp.guard = held.guard !== null || !!keys.KeyK;
+  if (dashQueued) { inp.dash = true; dashQueued = false; }
+}
+
+// ───────── 그리기 (모든 그림은 코드로 직접 그림) ─────────
+function drawFighter(f) {
+  ctx.save(); ctx.translate(f.x, f.y);
+  ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(0, FR * 0.7, FR * 0.95, FR * 0.45, 0, 0, 7); ctx.fill();
+  if (f.power > 0) { ctx.strokeStyle = '#ff9d4d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, FR + 6, 0, 7); ctx.stroke(); }
+  if (f.haste > 0) { ctx.strokeStyle = '#5cc8ff'; ctx.lineWidth = 2; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.arc(0, 0, FR + 10, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  ctx.rotate(f.face);
+  // 공격 궤적
+  if (f.state === 'attack') {
+    const tm = atkTiming(f), k = Math.min(1, f.t / tm.act), heavy = f.combo === 3;
+    const a0 = -1.05 + 2.1 * k;
+    if (f.t >= tm.wind * 0.6) {
+      ctx.fillStyle = heavy ? 'rgba(255,207,90,.4)' : 'rgba(255,255,255,.28)';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, FR + 44, -1.05, a0); ctx.closePath(); ctx.fill();
+    }
+    ctx.save(); ctx.rotate(a0); ctx.strokeStyle = heavy ? '#ffcf5a' : '#e9edf5'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(FR * 0.6, 0); ctx.lineTo(FR + 40, 0); ctx.stroke(); ctx.restore();
+  } else {
+    ctx.strokeStyle = '#c9d0dc'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(FR * 0.5, FR * 0.75); ctx.lineTo(FR + 16, FR * 0.9); ctx.stroke();
+  }
+  // 몸
+  ctx.globalAlpha = f.inv > 0 ? 0.5 : 1;
+  ctx.fillStyle = f.flash > 0 ? '#fff' : f.color;
+  ctx.beginPath(); ctx.arc(0, 0, FR, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#10151c';
+  if (f.state === 'stun') {
+    ctx.lineWidth = 2.5; ctx.strokeStyle = '#10151c';
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(6, s * 7 - 3); ctx.lineTo(12, s * 7 + 3); ctx.moveTo(12, s * 7 - 3); ctx.lineTo(6, s * 7 + 3); ctx.stroke(); }
+  } else { ctx.beginPath(); ctx.arc(9, -7, 3.2, 0, 7); ctx.arc(9, 7, 3.2, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // 방패
+  if (f.state === 'guard') {
+    ctx.strokeStyle = '#5cc8ff'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, 0, FR + 9, -1.1, 1.1); ctx.stroke();
+  }
+  ctx.restore();
+  // 방어 게이지 막대
+  ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(f.x - 16, f.y + FR + 9, 32, 4);
+  ctx.fillStyle = f.guardLock ? '#ff7d7d' : '#5cc8ff'; ctx.fillRect(f.x - 16, f.y + FR + 9, 32 * f.guardGauge, 4);
+}
+
+function drawHud() {
+  const pad = 10, mid = 58, bw = (W - pad * 2 - mid) / 2, y = 22, h = 14;
+  const bar = (x, hp, color, label, right) => {
+    ctx.fillStyle = '#2a323f'; ctx.fillRect(x, y, bw, h);
+    const w = bw * Math.max(0, hp) / 100;
+    ctx.fillStyle = color; ctx.fillRect(right ? x + bw - w : x, y, w, h);
+    ctx.fillStyle = '#d5dbe7'; ctx.font = '600 12px system-ui, sans-serif'; ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = right ? 'right' : 'left';
+    ctx.fillText(label + ' ' + Math.ceil(hp), right ? x + bw : x, y - 5);
+  };
+  bar(pad, G.p.hp, '#4d9dff', '나', false);
+  bar(W - pad - bw, G.e.hp, '#ff6b6b', '컴퓨터', true);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '700 20px system-ui, sans-serif';
+  ctx.fillText(String(Math.max(0, Math.ceil(MATCH_TIME - G.time))), W / 2, y + 13);
+  ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.4)';
+  ctx.fillText('시험판 v0.1', W / 2, H - 6);
+}
+
+function drawControls() {
+  const jx = joy.id !== null ? joy.ox : L.joyHome.x, jy = joy.id !== null ? joy.oy : L.joyHome.y;
+  ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 2; ctx.fillStyle = 'rgba(255,255,255,.06)';
+  ctx.beginPath(); ctx.arc(jx, jy, L.joyR, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.45)';
+  ctx.beginPath(); ctx.arc(jx + joy.x * L.joyR, jy + joy.y * L.joyR, L.joyR * 0.45, 0, 7); ctx.fill();
+  if (joy.id === null) { ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.font = '12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('이동', jx, jy + L.joyR + 16); }
+  for (const k of ['attack', 'guard', 'dash']) {
+    const b = L.btn[k];
+    const on = (k === 'attack' && held.attack !== null) || (k === 'guard' && held.guard !== null);
+    ctx.globalAlpha = on ? 0.95 : 0.6;
+    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1;
+    if (k === 'dash' && G.p.dashCd > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.beginPath(); ctx.moveTo(b.x, b.y);
+      ctx.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (G.p.dashCd / 1.3)); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = '#10151c'; ctx.font = '700 ' + Math.round(b.r * 0.46) + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(b.label, b.x, b.y + 1);
+  }
+}
+
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#14181f'; ctx.fillRect(0, 0, W, H);
+  if (!G) return;
+  const sh = G.shake > 0 ? G.shake * 30 : 0;
+  ctx.save();
+  ctx.translate(L.cx + (Math.random() - 0.5) * sh, L.cy + (Math.random() - 0.5) * sh); ctx.scale(L.s, L.s);
+  // 경기장
+  const ring = ringR(G.time);
+  ctx.fillStyle = '#4a2630'; ctx.beginPath(); ctx.arc(0, 0, R0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#273447'; ctx.beginPath(); ctx.arc(0, 0, ring, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 2;
+  for (let r = 60; r < ring; r += 60) { ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke(); }
+  ctx.strokeStyle = G.time > SHRINK_START && ring > R0 * SHRINK_MIN + 1 ? '#ff7d7d' : '#55657d'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, 0, ring, 0, 7); ctx.stroke();
+  ctx.strokeStyle = '#0c0f15'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(0, 0, R0 + 3, 0, 7); ctx.stroke();
+  // 아이템
+  for (const it of G.items) {
+    const bob = Math.sin(it.t * 4) * 3;
+    ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(it.x, it.y + 12, 11, 5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = it.type.color; ctx.beginPath(); ctx.arc(it.x, it.y + bob, 13, 0, 7); ctx.fill();
+    ctx.fillStyle = '#10151c'; ctx.font = '800 18px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(it.type.glyph, it.x, it.y + bob + 1);
+  }
+  const fs = G.p.y < G.e.y ? [G.p, G.e] : [G.e, G.p];
+  for (const f of fs) drawFighter(f);
+  ctx.fillStyle = '#ffe9a8';
+  for (const s of G.sparks) { ctx.globalAlpha = 1 - s.t / 0.3; ctx.beginPath(); ctx.arc(s.x, s.y, 3, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  for (const t of G.texts) {
+    ctx.globalAlpha = 1 - t.t / 0.8; ctx.fillStyle = t.color; ctx.font = '800 20px system-ui, sans-serif';
+    ctx.fillText(t.str, t.x, t.y - t.t * 40);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+  // 구역 축소 알림
+  if (G.time > SHRINK_START - 3 && G.time < SHRINK_START + 2) {
+    ctx.fillStyle = '#ff7d7d'; ctx.font = '700 16px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('안전 구역이 줄어듭니다!', W / 2, L.hud + 20);
+  }
+  drawHud(); drawControls();
+}
+
+// ───────── 화면 전환 ─────────
+const titleEl = document.getElementById('titleScreen'), resEl = document.getElementById('resultScreen');
+function startGame() {
+  try { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume(); } catch (e) {}
+  joy.id = null; joy.x = joy.y = 0; held.attack = held.guard = null; dashQueued = false;
+  newGame(); titleEl.classList.add('hidden'); resEl.classList.add('hidden');
+}
+function endGame(r, byTime) {
+  G.mode = 'over'; G.result = r;
+  const t = document.getElementById('resText');
+  t.textContent = r === 'win' ? '승리!' : r === 'lose' ? '패배…' : '무승부';
+  t.className = 'res ' + r;
+  document.getElementById('resSub').textContent =
+    (byTime ? '시간 종료 · ' : '') + '내 체력 ' + Math.ceil(G.p.hp) + ' / 컴퓨터 체력 ' + Math.ceil(G.e.hp) + ' · ' + Math.round(G.time) + '초';
+  setTimeout(() => resEl.classList.remove('hidden'), 500);
+  beep(r === 'win' ? 660 : 160, 0.4, 'triangle', 0.07);
+}
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('retryBtn').addEventListener('click', startGame);
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, (now - last) / 1000); last = now;
+  step(dt); draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// 시험용 창구 (자동 시험에서만 씀)
+window.__game = { get G() { return G; }, step, layout: () => L, start: startGame };
+})();
+</script>
+</body>
+</html>
