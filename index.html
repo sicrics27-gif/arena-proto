@@ -23,7 +23,21 @@
                padding: 15px 0; width: 100%; touch-action: manipulation; }
   button.big:active { transform: scale(.98); background: #58cf90; }
   .res { font-size: 44px; font-weight: 800; margin: 0 0 6px; }
-  @media (max-height: 520px) {   /* 가로로 눕힌 낮은 화면: 안내를 두 줄로 줄여 시작 버튼이 보이게 */
+  button.ghost { font: inherit; font-size: 15px; font-weight: 700; color: #d5dbe7; background: rgba(20,28,40,.6); border: 1.5px solid rgba(255,255,255,.3);
+                 border-radius: 12px; padding: 11px 0; width: 100%; margin-top: 8px; touch-action: manipulation; }
+  .gear { margin: 0 0 10px; }
+  .grow { display: flex; align-items: center; gap: 6px; }
+  .glabel { width: 36px; font-size: 13px; font-weight: 700; color: #cfd8e6; text-align: left; flex: none; }
+  .gbtn { flex: 1; font: inherit; font-size: 14px; font-weight: 700; color: #d5dbe7; background: #1e2530; border: 1.5px solid rgba(255,255,255,.16);
+          border-radius: 10px; padding: 9px 0; touch-action: manipulation; }
+  .gbtn.on { color: #10151c; border-color: rgba(255,255,255,.75); }
+  .gdesc { margin: 3px 0 9px 42px; font-size: 12.5px; color: #b6c0d0; text-align: left; line-height: 1.35; }
+  details.howbox { margin: 0 0 12px; text-align: left; }
+  details.howbox summary { font-size: 13.5px; color: #cfd8e6; padding: 8px 2px; }
+  details.howbox ul.how { margin: 4px 0 0; }
+  @media (max-height: 520px) {
+    .gbtn { padding: 5px 0; font-size: 13px; } .gdesc { font-size: 11px; margin: 2px 0 4px 42px; }
+    details.howbox { margin-bottom: 6px; } details.howbox summary { padding: 2px; font-size: 12px; } button.ghost { padding: 7px 0; margin-top: 5px; }   /* 가로로 눕힌 낮은 화면: 안내를 두 줄로 줄여 시작 버튼이 보이게 */
     .card { max-width: 680px; } h1 { font-size: 20px; margin-bottom: 4px; } .sub { display: none; } .tag { margin-bottom: 4px; }
     ul.how { columns: 2; column-gap: 26px; font-size: 12px; line-height: 1.45; padding: 8px 12px 8px 26px; margin-bottom: 8px; }
     button.big { padding: 9px 0; font-size: 16px; } .res { font-size: 30px; }
@@ -36,10 +50,14 @@
 
 <div class="overlay" id="titleScreen">
   <div class="card">
-    <div class="tag">시험판 v0.4 · 이름·그림 모두 임시</div>
+    <div class="tag">시험판 v0.5 · 이름·그림 모두 임시</div>
     <h1>아레나 시험판</h1>
-    <p class="sub">컴퓨터 상대와 1:1로 한 판.<br>체력을 먼저 0으로 만들면 이깁니다.</p>
+    <p class="sub">컴퓨터 상대와 1:1로 한 판. 속성을 골라 보세요.</p>
+    <div class="gear" id="gear"></div>
+    <details class="howbox" id="howBox">
+      <summary>조작법·규칙 보기</summary>
     <ul class="how">
+      <li><b>속성</b>: 망치·신발·한방에 불·물·바람·땅 중 하나씩 고릅니다. 상대 속성은 매 판 무작위</li>
       <li><b>왼쪽 아래</b>를 누른 채 끌면 이동</li>
       <li><b>공격</b>: 연속 3번째 타격이 상대를 멀리 밀어냅니다</li>
       <li><b>방어</b>: 누르고 있는 동안 앞쪽 공격을 막고 상대를 튕겨냅니다 (오래 누르면 풀리고, 놓으면 다시 찹니다)</li>
@@ -48,16 +66,18 @@
       <li><b>충격 벽</b>: 닿으면 한동안 굳습니다. 상대를 벽으로 몰아 굳힌 뒤 한방을 꽂아 넣으세요. 벽은 점점 좁혀 옵니다</li>
       <li>바닥의 <b>아이템</b>을 먹으면 회복·힘·속도 상승</li>
     </ul>
+    </details>
     <button class="big" id="startBtn">게임 시작</button>
   </div>
 </div>
 
 <div class="overlay hidden" id="resultScreen">
   <div class="card">
-    <div class="tag">시험판 v0.4</div>
+    <div class="tag">시험판 v0.5</div>
     <p class="res" id="resText">승리!</p>
     <p class="sub" id="resSub"></p>
     <button class="big" id="retryBtn">다시 하기</button>
+    <button class="ghost" id="gearBtn">속성 바꾸기</button>
   </div>
 </div>
 
@@ -72,7 +92,32 @@ const SPEED = 195;
 const MATCH_TIME = 120;
 const SHRINK_START = 10, SHRINK_END = 45, SHRINK_MIN = 0.62;   // 충격 벽이 좁혀 오는 시간과 최소 크기
 const SHOCK_STUN = 1.1, SHOCK_DMG = 6, SHOCK_IMMUNE = 2.5;     // 벽에 닿았을 때 굳는 시간·피해·다시 안 걸리는 시간
-const SHOT_CD = 6, SHOT_WIND = 0.45, SHOT_SPEED = 540, SHOT_DMG = 26, SHOT_R = 12;   // 한방
+const SHOT_WIND = 0.45;   // 한방을 모으는 시간
+// ───────── 속성(기운): 망치·신발·한방에 하나씩 고름. 효과와 수치는 모두 우리 식으로 새로 정함 ─────────
+const ELEMS = {
+  fire:  { name: '불',   color: '#ff7a4d', rgb: '255,122,77' },
+  water: { name: '물',   color: '#4db8ff', rgb: '77,184,255' },
+  wind:  { name: '바람', color: '#6fe3a5', rgb: '111,227,165' },
+  earth: { name: '땅',   color: '#d9a35a', rgb: '217,163,90' },
+};
+const ELEM_KEYS = ['fire', 'water', 'wind', 'earth'];
+const SLOTS = { w: '망치', s: '신발', x: '한방' };
+const GEAR_DESC = {
+  w: { fire: '맞은 상대가 2초 동안 불탑니다', water: '맞은 상대가 잠깐 느려집니다', wind: '상대를 더 멀리 밀어냅니다', earth: '더 아프지만 덜 밀어냅니다' },
+  s: { fire: '회피 직후 바로 치면 강타가 나갑니다', water: '회피를 더 자주 쓸 수 있습니다', wind: '이동이 빨라집니다', earth: '덜 밀려나고 벽에서 빨리 풀립니다' },
+  x: { fire: '맞은 상대가 3초 동안 불탑니다', water: '약하지만 맞은 상대가 얼어붙습니다', wind: '아주 빠르고 자주 쏠 수 있습니다', earth: '느리지만 크고 아주 아픕니다' },
+};
+const SHOTS = {   // 한방 속성별: 피해, 날아가는 속도, 크기, 다시 쓰기까지 시간
+  fire:  { dmg: 24, speed: 540, r: 12, cd: 6 },
+  water: { dmg: 16, speed: 540, r: 12, cd: 6 },
+  wind:  { dmg: 20, speed: 800, r: 11, cd: 4.5 },
+  earth: { dmg: 34, speed: 380, r: 17, cd: 6.5 },
+};
+const BURN_DPS = 1.5;
+let loadout = { w: 'fire', s: 'wind', x: 'water' };   // 내가 고른 속성 (이 기기에만 기억)
+try { const sv = JSON.parse(localStorage.getItem('arena.loadout') || 'null'); if (sv && ELEMS[sv.w] && ELEMS[sv.s] && ELEMS[sv.x]) loadout = { w: sv.w, s: sv.s, x: sv.x }; } catch (e) {}
+let forcedCpuGear = null;   // 시험용
+const randomGear = () => ({ w: ELEM_KEYS[Math.random() * 4 | 0], s: ELEM_KEYS[Math.random() * 4 | 0], x: ELEM_KEYS[Math.random() * 4 | 0] });
 // 컴퓨터 상대 성향 (난이도 조절용)
 const AI = { guard: 0.27, dodge: 0.10, chain: 0.5, coolMin: 0.4, coolRand: 0.7, punish: 0.04, shotDodge: 0.5, shotGuard: 0.2, snipe: 0.35 };
 const ITEM_TYPES = [
@@ -90,7 +135,7 @@ function layout() {
   DPR = Math.min(window.devicePixelRatio || 1, dprCap);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
-  const hud = 52;
+  const hud = 60;
   const portrait = H >= W * 0.9;
   const ctrlH = portrait ? Math.max(170, Math.min(240, H * 0.3)) : 0;
   const areaH = H - hud - ctrlH;
@@ -137,10 +182,11 @@ function beep(freq, dur, type, vol) {
 
 // ───────── 게임 상태 ─────────
 let G = null;
-function newFighter(x, y, color, isCpu) {
+function newFighter(x, y, color, isCpu, gear) {
   return { x, y, kx: 0, ky: 0, face: isCpu ? Math.PI : 0, hp: 100, color, isCpu,
            state: 'idle', t: 0, combo: 0, lastAtkEnd: -9, hitDone: false, atkId: 0,
            guardGauge: 1, guardLock: false, dashCd: 0, inv: 0, dashDir: 0,
+           gear, burn: 0, slowT: 0, frozen: 0, hot: 0, dashMax: 1.3, shotMax: SHOTS[gear.x].cd,
            shotCd: 0, shotId: 0, shocked: 0, shockImmune: 0,
            power: 0, haste: 0, flash: 0,
            in: { mx: 0, my: 0, attack: false, guard: false, dash: false, shot: false } };
@@ -148,8 +194,8 @@ function newFighter(x, y, color, isCpu) {
 function newGame() {
   G = {
     mode: 'play', time: 0, shake: 0,
-    p: newFighter(-90, 0, '#4d9dff', false),
-    e: newFighter(90, 0, '#ff6b6b', true),
+    p: newFighter(-90, 0, '#4d9dff', false, Object.assign({}, loadout)),
+    e: newFighter(90, 0, '#ff6b6b', true, forcedCpuGear ? Object.assign({}, forcedCpuGear) : randomGear()),
     items: [], itemTimer: 4, texts: [], sparks: [], shots: [], fx: [], winner: null, loser: null,
     ai: { cool: 0.6, guardT: 0, seenAtk: 0, seenShot: 0, evadeT: 0, strafe: 1, strafeT: 0, wait: 0 },
     result: null,
@@ -186,13 +232,15 @@ function startDash(f) {
   if (f.dashCd > 0 || (f.state !== 'idle' && f.state !== 'guard')) return;
   const m = Math.hypot(f.in.mx, f.in.my);
   f.dashDir = m > 0.2 ? Math.atan2(f.in.my, f.in.mx) : f.face;
-  f.state = 'dash'; f.t = 0; f.inv = 0.24; f.dashCd = 1.3;
+  f.dashMax = f.gear.s === 'water' ? 0.8 : 1.3;   // 물 신발: 회피를 더 자주
+  f.state = 'dash'; f.t = 0; f.inv = 0.24; f.dashCd = f.dashMax;
   for (let i = 0; i < 3; i++) fx('puff', f.x + (Math.random() - 0.5) * 16, f.y + (Math.random() - 0.5) * 16, { life: 0.4 });
   if (!f.isCpu) beep(600, 0.08, 'sine', 0.05);
 }
 function startShot(f, foe) {
   if (f.shotCd > 0 || (f.state !== 'idle' && f.state !== 'guard')) return;
-  f.state = 'aim'; f.t = 0; f.shotCd = SHOT_CD; f.shotId++;
+  f.shotMax = SHOTS[f.gear.x].cd;
+  f.state = 'aim'; f.t = 0; f.shotCd = f.shotMax; f.shotId++;
   f.face = Math.atan2(foe.y - f.y, foe.x - f.x);   // 누르는 순간 상대 쪽으로 조준 (그 뒤로는 방향 고정)
   if (!f.isCpu) beep(260, 0.3, 'sine', 0.05);
 }
@@ -203,25 +251,28 @@ function burst(x, y, n, dir) {
   }
 }
 function resolveShot(s, d) {
-  const dir = Math.atan2(s.vy, s.vx), dmg = SHOT_DMG * (s.power ? 1.5 : 1);
+  const dir = Math.atan2(s.vy, s.vx), dmg = s.dmg * (s.power ? 1.5 : 1), E = ELEMS[s.el];
   const blocked = d.state === 'guard' && Math.abs(angDiff(dir + Math.PI, d.face)) < 1.3;
   if (blocked) {
     d.guardGauge -= 0.5; d.hp -= dmg * 0.2;
     d.kx += Math.cos(dir) * 200; d.ky += Math.sin(dir) * 200;
-    fx('ring', d.x, d.y, { r0: 12, r1: 50, color: '120,210,255' }); fx('burst', d.x, d.y, { life: 0.18, color: '200,170,255' });
+    fx('ring', d.x, d.y, { r0: 12, r1: 50, color: '120,210,255' }); fx('burst', d.x, d.y, { life: 0.18, color: E.rgb });
     if (d.guardGauge <= 0) {
       d.state = 'stun'; d.t = 0.6; d.guardGauge = 0; d.guardLock = true;
       addText(d.x, d.y - 30, '방어 깨짐!', '#ff7d7d'); beep(110, 0.2, 'sawtooth', 0.06);
     } else { addText(d.x, d.y - 30, '막음', '#5cc8ff'); beep(880, 0.06, 'square', 0.04); }
   } else {
-    if (d.state === 'aim') d.shotCd = SHOT_CD / 2;
+    if (d.state === 'aim') d.shotCd = d.shotMax / 2;
     d.hp -= dmg; d.flash = 0.2;
-    if (d.state !== 'dash') { d.t = d.state === 'stun' ? Math.max(d.t, 0.4) : 0.4; d.state = 'stun'; }
-    d.kx += Math.cos(dir) * 460; d.ky += Math.sin(dir) * 460;
-    addText(d.x, d.y - 34, '-' + Math.round(dmg), '#c08bff');
+    const stunT = s.el === 'water' ? 1.2 : 0.4, kbm = (s.el === 'wind' ? 1.5 : 1) * (d.gear.s === 'earth' ? 0.6 : 1);
+    if (d.state !== 'dash') { d.t = d.state === 'stun' ? Math.max(d.t, stunT) : stunT; d.state = 'stun'; }
+    if (s.el === 'water') { d.frozen = 1.2; addText(d.x, d.y - 58, '꽁꽁!', '#bfe9ff'); }   // 물 한방: 얼어붙음
+    if (s.el === 'fire') d.burn = Math.max(d.burn, 3);                                       // 불 한방: 3초 불탐
+    d.kx += Math.cos(dir) * 460 * kbm; d.ky += Math.sin(dir) * 460 * kbm;
+    addText(d.x, d.y - 34, '-' + Math.round(dmg), E.color);
     G.shake = 0.3; burst(d.x, d.y, 14, dir); beep(90, 0.25, 'sawtooth', 0.08);
-    fx('ring', d.x, d.y, { life: 0.4, r0: 10, r1: 86, w: 8, color: '200,160,255' }); fx('ring', d.x, d.y, { life: 0.28, r0: 6, r1: 48, color: '255,255,255' });
-    fx('burst', d.x, d.y, { life: 0.28, big: true, color: '225,200,255' }); fx('flash', 0, 0, { life: 0.14, color: '200,160,255' });
+    fx('ring', d.x, d.y, { life: 0.4, r0: 10, r1: s.el === 'earth' ? 110 : 86, w: 8, color: E.rgb }); fx('ring', d.x, d.y, { life: 0.28, r0: 6, r1: 48, color: '255,255,255' });
+    fx('burst', d.x, d.y, { life: 0.28, big: true, color: E.rgb }); fx('flash', 0, 0, { life: 0.14, color: E.rgb });
   }
   if (d.hp < 0) d.hp = 0;
 }
@@ -231,18 +282,18 @@ function updateShots(dt) {
     const s = G.shots[i]; s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt;
     const tg = s.owner === G.p ? G.e : G.p;
     let dead = false;
-    if (Math.hypot(tg.x - s.x, tg.y - s.y) < FR + SHOT_R) {
+    if (Math.hypot(tg.x - s.x, tg.y - s.y) < FR + s.r) {
       if (tg.inv > 0) { if (!s.dodged) { s.dodged = true; addText(tg.x, tg.y - 30, '회피', '#ffcf5a'); } }
       else { resolveShot(s, tg); dead = true; }
     }
-    if (!dead && Math.hypot(s.x, s.y) > ring - 4) { dead = true; burst(s.x, s.y, 6); fx('ring', s.x, s.y, { r0: 6, r1: 34, color: '200,160,255' }); }
+    if (!dead && Math.hypot(s.x, s.y) > ring - 4) { dead = true; burst(s.x, s.y, 6); fx('ring', s.x, s.y, { r0: 6, r1: 34, color: ELEMS[s.el].rgb }); }
     if (dead) G.shots.splice(i, 1);
   }
 }
 function resolveHit(a, d) {
   if (d.inv > 0) { addText(d.x, d.y - 30, '회피', '#ffcf5a'); return; }
   const heavy = a.combo === 3;
-  let dmg = (heavy ? 6 : 2) * (a.power > 0 ? 1.5 : 1);
+  let dmg = (heavy ? 6 : 2) * (a.power > 0 ? 1.5 : 1) * (a.gear.w === 'earth' ? 1.5 : 1);   // 땅 망치: 더 아픔
   const dir = Math.atan2(d.y - a.y, d.x - a.x);
   const toAtt = Math.atan2(a.y - d.y, a.x - d.x);
   const blocked = d.state === 'guard' && Math.abs(angDiff(toAtt, d.face)) < 1.3;
@@ -260,10 +311,12 @@ function resolveHit(a, d) {
     }
   } else {
     d.hp -= dmg; d.flash = 0.15;
-    if (d.state === 'aim') d.shotCd = SHOT_CD / 2;   // 모으다 맞으면 한방 대기 시간 절반만 소모
+    if (a.gear.w === 'fire') d.burn = Math.max(d.burn, 2);   // 불 망치: 2초 불탐
+    if (a.gear.w === 'water') d.slowT = 1.2;                // 물 망치: 잠깐 느려짐
+    if (d.state === 'aim') d.shotCd = d.shotMax / 2;   // 모으다 맞으면 한방 대기 시간 절반만 소모
     if (d.state !== 'dash') { const st = heavy ? 0.32 : 0.18; d.t = d.state === 'stun' ? Math.max(d.t, st) : st; d.state = 'stun'; }
-    if (heavy && d.shocked <= 0) d.inv = 0.6;   // 크게 맞은 뒤 잠깐 무적 (단, 벽에 굳어 있는 동안은 계속 맞음)
-    const kb = heavy ? 520 : 240;
+    if (heavy && d.shocked <= 0 && d.frozen <= 0) d.inv = 0.6;   // 크게 맞은 뒤 잠깐 무적 (단, 벽에 굳어 있는 동안은 계속 맞음)
+    const kb = (heavy ? 520 : 240) * (a.gear.w === 'wind' ? 1.4 : a.gear.w === 'earth' ? 0.7 : 1) * (d.gear.s === 'earth' ? 0.6 : 1);   // 바람 망치는 더 멀리, 땅 신발은 덜 밀림
     d.kx += Math.cos(dir) * kb; d.ky += Math.sin(dir) * kb;
     addText(d.x, d.y - 30, '-' + Math.round(dmg), heavy ? '#ffcf5a' : '#fff');
     G.shake = heavy ? 0.22 : 0.1;
@@ -280,6 +333,8 @@ function resolveHit(a, d) {
 function updateFighter(f, foe, dt) {
   const inp = f.in;
   f.dashCd = Math.max(0, f.dashCd - dt); f.inv = Math.max(0, f.inv - dt);
+  f.slowT = Math.max(0, f.slowT - dt); f.frozen = Math.max(0, f.frozen - dt); f.hot = Math.max(0, f.hot - dt);
+  if (f.burn > 0) { f.burn = Math.max(0, f.burn - dt); f.hp = Math.max(0, f.hp - BURN_DPS * dt); }   // 불탐: 조금씩 피해
   f.shotCd = Math.max(0, f.shotCd - dt); f.shocked = Math.max(0, f.shocked - dt); f.shockImmune = Math.max(0, f.shockImmune - dt);
   f.power = Math.max(0, f.power - dt); f.haste = Math.max(0, f.haste - dt); f.flash = Math.max(0, f.flash - dt);
   // 방어 게이지: 누르고 있으면 줄고(최대 약 1.6초), 놓으면 다시 참. 바닥나면 절반 찰 때까지 방어 불가
@@ -288,19 +343,20 @@ function updateFighter(f, foe, dt) {
   if (f.guardLock && f.guardGauge >= 0.5) f.guardLock = false;
   let mx = inp.mx, my = inp.my; const m = Math.hypot(mx, my);
   if (m > 1) { mx /= m; my /= m; }
-  let sp = SPEED * (f.haste > 0 ? 1.3 : 1) * (f.isCpu ? 0.92 : 1);
+  let sp = SPEED * (f.haste > 0 ? 1.3 : 1) * (f.isCpu ? 0.92 : 1) * (f.gear.s === 'wind' ? 1.15 : 1) * (f.slowT > 0 ? 0.65 : 1);   // 바람 신발은 빠르고, 물 망치에 맞으면 느려짐
   let vx = 0, vy = 0;
 
   if (f.state === 'stun') {
     f.t -= dt; if (f.t <= 0) f.state = 'idle';
   } else if (f.state === 'dash') {
     f.t += dt; vx = Math.cos(f.dashDir) * 640; vy = Math.sin(f.dashDir) * 640;
-    if (f.t >= 0.2) f.state = 'idle';
+    if (f.t >= 0.2) { f.state = 'idle'; if (f.gear.s === 'fire') { f.combo = 2; f.lastAtkEnd = G.time; f.hot = 0.45; } }   // 불 신발: 회피 직후 바로 치면 강타
   } else if (f.state === 'aim') {
     f.t += dt;   // 모으는 동안은 못 움직임
     if (f.t >= SHOT_WIND) {
       const cx = Math.cos(f.face), sy = Math.sin(f.face);
-      G.shots.push({ x: f.x + cx * (FR + 10), y: f.y + sy * (FR + 10), vx: cx * SHOT_SPEED, vy: sy * SHOT_SPEED, owner: f, t: 0, power: f.power > 0, dodged: false });
+      const sd = SHOTS[f.gear.x];
+      G.shots.push({ x: f.x + cx * (FR + 10), y: f.y + sy * (FR + 10), vx: cx * sd.speed, vy: sy * sd.speed, owner: f, t: 0, power: f.power > 0, dodged: false, el: f.gear.x, r: sd.r, dmg: sd.dmg });
       f.state = 'idle'; f.kx -= cx * 90; f.ky -= sy * 90;   // 반동
       beep(420, 0.12, 'square', 0.06);
     }
@@ -343,8 +399,9 @@ function updateFighter(f, foe, dt) {
     const nx = f.x / d, ny = f.y / d;
     f.x = nx * lim; f.y = ny * lim;
     if (f.shockImmune <= 0) {
-      if (f.state === 'aim') f.shotCd = SHOT_CD / 2;
-      f.state = 'stun'; f.t = SHOCK_STUN; f.shocked = SHOCK_STUN; f.shockImmune = SHOCK_STUN + SHOCK_IMMUNE; f.inv = 0;
+      if (f.state === 'aim') f.shotCd = f.shotMax / 2;
+      const st = SHOCK_STUN * (f.gear.s === 'earth' ? 0.65 : 1);   // 땅 신발: 벽에서 빨리 풀림
+      f.state = 'stun'; f.t = st; f.shocked = st; f.shockImmune = st + SHOCK_IMMUNE; f.inv = 0;
       f.hp = Math.max(0, f.hp - SHOCK_DMG); f.kx = -nx * 160; f.ky = -ny * 160;
       addText(f.x, f.y - 34, '찌릿!', '#ffe35a'); G.shake = Math.max(G.shake, 0.15); burst(f.x, f.y, 8);
       { // 벽에서 캐릭터로 튀는 번개 모양(그림만)
@@ -381,7 +438,7 @@ function updateAI(dt) {
   // 상대가 한방을 모으는 걸 보면 옆으로 비키거나 막음 (한 번만 판단)
   if (p.state === 'aim' && p.shotId !== ai.seenShot && e.state === 'idle') {
     ai.seenShot = p.shotId;
-    const r = Math.random(), eta = SHOT_WIND - p.t + d / SHOT_SPEED;
+    const r = Math.random(), eta = SHOT_WIND - p.t + d / SHOTS[p.gear.x].speed;
     if (r < AI.shotDodge) ai.evadeT = eta + 0.1;
     else if (r < AI.shotDodge + AI.shotGuard && !e.guardLock) { ai.guardT = eta + 0.2; inp.guard = true; }
   }
@@ -392,7 +449,7 @@ function updateAI(dt) {
   }
   // 한방 쓰기: 상대가 굳어 있어 확실히 맞을 때, 또는 가끔 중거리에서
   if (e.state === 'idle' && e.shotCd <= 0 && !inp.guard) {
-    if (p.state === 'stun' && p.t > SHOT_WIND + d / SHOT_SPEED + 0.03) { inp.shot = true; return; }
+    if (p.state === 'stun' && p.t > SHOT_WIND + d / SHOTS[e.gear.x].speed + 0.03) { inp.shot = true; return; }
     if (d > 140 && d < 380 && p.state !== 'guard' && Math.random() < AI.snipe * dt) { inp.shot = true; return; }
   }
 
@@ -632,7 +689,7 @@ function drawGround(f) {
     }
   }
   if (f.state === 'aim') {
-    ctx.strokeStyle = 'rgba(192,139,255,.65)'; ctx.lineWidth = 3; ctx.setLineDash([9, 8]);
+    ctx.strokeStyle = 'rgba(' + ELEMS[f.gear.x].rgb + ',.7)'; ctx.lineWidth = 3; ctx.setLineDash([9, 8]);
     ctx.beginPath(); ctx.moveTo(FR + 10, 0); ctx.lineTo(FR + 460, 0); ctx.stroke(); ctx.setLineDash([]);
   }
   if (f.state === 'guard') {
@@ -671,11 +728,11 @@ function drawBody(f, now) {
   // 앞에 드는 것들(망치·방패·모으는 구슬): 뒤돌아 있으면 몸보다 먼저, 아니면 나중에 그림
   const frontStuff = () => {
     if (ko) return;
-    let ang = f.face + 0.55, len = 24, headCol = white ? '#fff' : '#eef2f8', headR = 6.5;
+    let ang = f.face + 0.55, len = 24, headCol = white ? '#fff' : ELEMS[f.gear.w].color, headR = 7;
     if (won) ang = -Math.PI / 2 + Math.sin(now * 6) * 0.5;
     if (f.state === 'attack') {
       const tm = atkTiming(f), k = Math.min(1, f.t / tm.act), heavy = f.combo === 3; ang = f.face - 1.05 + 2.1 * k; len = 38;
-      if (heavy) { headCol = '#ffcf5a'; headR = 9; }
+      if (heavy) headR = 9.5;
       if (f.t >= tm.wind * 0.5) {   // 휘두른 자국
         const a0 = f.face - 1.05, n = 8;
         for (let i = 0; i < n; i++) {
@@ -689,6 +746,7 @@ function drawBody(f, now) {
     const tx = px + Math.cos(ang) * (8 + len), ty = by + 2 + Math.sin(ang) * (8 + len) * TILT;
     ctx.strokeStyle = line; ctx.lineWidth = 6.5; ctx.beginPath(); ctx.moveTo(hxh, hyh); ctx.lineTo(tx, ty); ctx.stroke();
     ctx.strokeStyle = white ? '#fff' : '#b08a5e'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(hxh, hyh); ctx.lineTo(tx, ty); ctx.stroke();
+    if (f.hot > 0) { ctx.fillStyle = 'rgba(255,150,70,.45)'; dot(tx, ty, headR + 7 + Math.sin(now * 30) * 1.5); }   // 불 신발 강타 준비
     ctx.fillStyle = headCol; dot(tx, ty, headR); ctx.strokeStyle = line; ctx.lineWidth = 1.8; ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,.8)'; dot(tx - headR * 0.3, ty - headR * 0.3, headR * 0.3);
     ctx.fillStyle = '#ffffff'; dot(hxh, hyh, 4.2); ctx.strokeStyle = line; ctx.lineWidth = 1.5; ctx.stroke();
@@ -698,17 +756,17 @@ function drawBody(f, now) {
     }
     if (f.state === 'aim') {
       const k = Math.min(1, f.t / SHOT_WIND), ox = px + fx * 26, oy = by + fy * 26 * TILT;
-      ctx.fillStyle = 'rgba(192,139,255,.3)'; dot(ox, oy, 9 + 14 * k + Math.sin(now * 40) * 1.5);
-      ctx.fillStyle = '#c08bff'; dot(ox, oy, 4 + 9 * k); ctx.fillStyle = '#fff'; dot(ox, oy, 2 + 4 * k);
+      ctx.fillStyle = 'rgba(' + ELEMS[f.gear.x].rgb + ',.3)'; dot(ox, oy, 9 + 14 * k + Math.sin(now * 40) * 1.5);
+      ctx.fillStyle = ELEMS[f.gear.x].color; dot(ox, oy, 4 + 9 * k); ctx.fillStyle = '#fff'; dot(ox, oy, 2 + 4 * k);
       for (let i = 0; i < 4; i++) { const a = now * 9 + i * 1.57, r = 22 * (1 - k) + 8; ctx.fillStyle = 'rgba(225,200,255,.8)'; dot(ox + Math.cos(a) * r, oy + Math.sin(a) * r * 0.8, 1.8); }
     }
   };
   if (back) frontStuff();
 
   // 발
-  ctx.fillStyle = white ? '#fff' : '#1c2433';
-  ctx.beginPath(); ctx.ellipse(px - 6 + fx * step * 3, py + 3 - Math.max(0, step) * 3 - hop, 5.5, 3.6, 0, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(px + 6 - fx * step * 3, py + 3 - Math.max(0, -step) * 3 - hop, 5.5, 3.6, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = white ? '#fff' : ELEMS[f.gear.s].color; ctx.strokeStyle = line; ctx.lineWidth = 1.6;   // 신발 색 = 신발 속성
+  ctx.beginPath(); ctx.ellipse(px - 6 + fx * step * 3, py + 3 - Math.max(0, step) * 3 - hop, 5.8, 3.9, 0, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(px + 6 - fx * step * 3, py + 3 - Math.max(0, -step) * 3 - hop, 5.8, 3.9, 0, 0, 7); ctx.fill(); ctx.stroke();
   // 목도리 꼬리 → 몸(겉옷)
   ctx.fillStyle = scarf; ctx.strokeStyle = line; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.ellipse(px - fx * 11, by - 6, 3.2, 6.5, fx * 0.5 + Math.sin(now * 5) * 0.15, 0, 7); ctx.fill(); ctx.stroke();
@@ -762,6 +820,21 @@ function drawBody(f, now) {
   ctx.restore();
 
   ctx.save(); ctx.lineCap = 'round';
+  if (!over) {
+    if (f.frozen > 0) {   // 얼어붙음
+      ctx.fillStyle = 'rgba(170,222,255,.5)'; ctx.strokeStyle = 'rgba(235,250,255,.95)'; ctx.lineWidth = 2;
+      rr(px - 19, hy - 19, 38, py - hy + 24, 9); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.moveTo(px - 11, hy - 10); ctx.lineTo(px - 5, hy - 1); ctx.moveTo(px + 6, by - 3); ctx.lineTo(px + 12, by + 8); ctx.stroke();
+    }
+    if (f.burn > 0) for (let i = 0; i < 4; i++) {   // 불탐
+      const ph = (now * 2.2 + i * 0.27) % 1, bx = px + Math.sin(i * 2.4 + now * 3) * 11;
+      ctx.fillStyle = 'rgba(255,' + (120 + 100 * (1 - ph) | 0) + ',60,' + (0.85 * (1 - ph)).toFixed(2) + ')'; dot(bx, by + 6 - ph * 34, 5.5 * (1 - ph) + 1.5);
+    }
+    if (f.slowT > 0) for (let i = 0; i < 3; i++) {   // 느려짐: 물방울
+      const ph = (now * 1.6 + i * 0.33) % 1;
+      ctx.fillStyle = 'rgba(110,200,255,' + (0.85 * (1 - ph)).toFixed(2) + ')'; dot(px - 12 + i * 12, by - 6 + ph * 20, 3.2);
+    }
+  }
   // 굳었을 때: 벽 충격이면 번쩍이는 줄, 아니면 머리 위 별
   if (shock) {
     ctx.strokeStyle = '#ffe35a'; ctx.lineWidth = 2.5;
@@ -802,10 +875,11 @@ function drawItem(it) {
   ctx.fillText(it.type.glyph, x, y + 1);
 }
 function drawShot(s) {
-  const x = s.x, y = s.y * TILT - 14;
-  for (let i = 4; i >= 1; i--) { ctx.fillStyle = 'rgba(192,139,255,' + (0.1 + 0.06 * (4 - i)).toFixed(2) + ')'; dot(x - s.vx * 0.018 * i, y - s.vy * 0.018 * i * TILT, SHOT_R * (1.05 - i * 0.12)); }
-  ctx.fillStyle = 'rgba(192,139,255,.35)'; dot(x, y, SHOT_R + 6);
-  ctx.fillStyle = '#c08bff'; dot(x, y, SHOT_R + 1); ctx.fillStyle = '#fff'; dot(x, y, SHOT_R * 0.5);
+  const x = s.x, y = s.y * TILT - 14, E = ELEMS[s.el];
+  for (let i = 4; i >= 1; i--) { ctx.fillStyle = 'rgba(' + E.rgb + ',' + (0.1 + 0.06 * (4 - i)).toFixed(2) + ')'; dot(x - s.vx * 0.018 * i, y - s.vy * 0.018 * i * TILT, s.r * (1.05 - i * 0.12)); }
+  ctx.fillStyle = 'rgba(' + E.rgb + ',.35)'; dot(x, y, s.r + 6);
+  ctx.fillStyle = E.color; dot(x, y, s.r + 1); ctx.strokeStyle = 'rgba(12,20,36,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#fff'; dot(x - s.r * 0.2, y - s.r * 0.2, s.r * 0.45);
 }
 // 충격 벽의 세워진 막: 뒤쪽 절반은 캐릭터보다 먼저, 앞쪽 절반은 나중에 그림
 function drawCurtain(ring, front, pulse) {
@@ -838,6 +912,10 @@ function drawHud() {
     }
     ctx.fillStyle = '#e6ecf6'; ctx.font = '700 11.5px system-ui, sans-serif'; ctx.textBaseline = 'alphabetic'; ctx.textAlign = right ? 'right' : 'left';
     ctx.fillText(label + ' ' + Math.ceil(hp), right ? x + bw : x, y - 6);
+    ['w', 's', 'x'].forEach((sl, i) => {   // 속성 표시: 망치·신발·한방 순
+      const cx0 = right ? x + bw - 6 - i * 14 : x + 6 + i * 14;
+      ctx.fillStyle = ELEMS[f.gear[sl]].color; dot(cx0, y + h + 9, 4.6); ctx.strokeStyle = 'rgba(8,12,20,.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    });
   };
   bar(bx, G.p, '나', false); bar(W - bx - bw, G.e, '컴퓨터', true);
   for (const [x, f] of [[pad + fr, G.p], [W - pad - fr, G.e]]) {
@@ -848,7 +926,7 @@ function drawHud() {
   ctx.fillStyle = 'rgba(8,12,20,.75)'; rr(W / 2 - 25, y - 9, 50, 30, 9); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.textAlign = 'center'; ctx.fillStyle = left <= 10 ? '#ff9a9a' : '#fff'; ctx.font = '800 19px system-ui, sans-serif'; ctx.fillText(String(left), W / 2, y + 13);
   ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.4)';
-  if (L.portrait) ctx.fillText('시험판 v0.4', W / 2, H - 6); else { ctx.textAlign = 'left'; ctx.fillText('시험판 v0.4', 10, H - 6); }
+  if (L.portrait) ctx.fillText('시험판 v0.5', W / 2, H - 6); else { ctx.textAlign = 'left'; ctx.fillText('시험판 v0.5', 10, H - 6); }
 }
 
 function drawControls() {
@@ -863,9 +941,9 @@ function drawControls() {
     const b = L.btn[k];
     const on = (k === 'attack' && held.attack !== null) || (k === 'guard' && held.guard !== null);
     ctx.globalAlpha = on ? 0.95 : 0.6;
-    ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
+    ctx.fillStyle = k === 'shot' ? ELEMS[G.p.gear.x].color : b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill();
     ctx.globalAlpha = 1;
-    const cd = k === 'dash' ? G.p.dashCd / 1.3 : k === 'shot' ? G.p.shotCd / SHOT_CD : 0;   // 다시 쓸 수 있을 때까지 남은 시간
+    const cd = k === 'dash' ? G.p.dashCd / G.p.dashMax : k === 'shot' ? G.p.shotCd / G.p.shotMax : 0;   // 다시 쓸 수 있을 때까지 남은 시간
     if (cd > 0) {
       ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.beginPath(); ctx.moveTo(b.x, b.y);
       ctx.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cd); ctx.closePath(); ctx.fill();
@@ -913,7 +991,7 @@ function draw() {
   ctx.beginPath(); ctx.arc(0, 0, ring, 0, 7); ctx.stroke(); ctx.setLineDash([]);
   // 바닥에 붙는 것들
   for (const it of G.items) { ctx.fillStyle = 'rgba(0,0,0,.3)'; dot(it.x, it.y, 10); }
-  for (const s of G.shots) { ctx.fillStyle = 'rgba(160,110,255,.3)'; dot(s.x, s.y, SHOT_R * 1.6); ctx.fillStyle = 'rgba(0,0,0,.28)'; dot(s.x, s.y, SHOT_R * 0.9); }
+  for (const s of G.shots) { ctx.fillStyle = 'rgba(' + ELEMS[s.el].rgb + ',.3)'; dot(s.x, s.y, s.r * 1.6); ctx.fillStyle = 'rgba(0,0,0,.28)'; dot(s.x, s.y, s.r * 0.9); }
   drawFxGround();
   drawGround(G.p); drawGround(G.e);
   ctx.restore();
@@ -968,7 +1046,31 @@ function draw() {
 
 // ───────── 화면 전환 ─────────
 const titleEl = document.getElementById('titleScreen'), resEl = document.getElementById('resultScreen');
+function buildGearUI() {
+  const box = document.getElementById('gear'); box.textContent = '';
+  for (const slot of ['w', 's', 'x']) {
+    const row = document.createElement('div'); row.className = 'grow';
+    const lab = document.createElement('span'); lab.className = 'glabel'; lab.textContent = SLOTS[slot]; row.appendChild(lab);
+    for (const k of ELEM_KEYS) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = ELEMS[k].name; b.dataset.slot = slot; b.dataset.el = k;
+      b.className = 'gbtn' + (loadout[slot] === k ? ' on' : ''); if (loadout[slot] === k) b.style.background = ELEMS[k].color;
+      b.addEventListener('click', () => {
+        loadout[slot] = k; try { localStorage.setItem('arena.loadout', JSON.stringify(loadout)); } catch (e) {}
+        if (G && G.mode === 'title') { G.p.gear = Object.assign({}, loadout); G.p.shotMax = SHOTS[loadout.x].cd; }
+        buildGearUI();
+      });
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+    const d = document.createElement('p'); d.className = 'gdesc'; d.textContent = ELEMS[loadout[slot]].name + ': ' + GEAR_DESC[slot][loadout[slot]]; box.appendChild(d);
+  }
+}
+buildGearUI();
+const howBox = document.getElementById('howBox');
+try { if (!localStorage.getItem('arena.seen') && window.innerHeight > 600) howBox.open = true; } catch (e) { howBox.open = window.innerHeight > 600; }   // 처음 온 사람에게는 조작법을 펼쳐서 보여 줌
+function showTitle() { newGame(); G.mode = 'title'; buildGearUI(); resEl.classList.add('hidden'); titleEl.classList.remove('hidden'); }
 function startGame() {
+  try { localStorage.setItem('arena.seen', '1'); } catch (e) {}
   try { if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } if (actx && actx.state === 'suspended') actx.resume(); } catch (e) {}
   joy.id = null; joy.x = joy.y = 0; held.attack = held.guard = null; dashQueued = false; shotQueued = false;
   newGame(); titleEl.classList.add('hidden'); resEl.classList.add('hidden');
@@ -980,12 +1082,14 @@ function endGame(r, byTime) {
   t.textContent = r === 'win' ? '승리!' : r === 'lose' ? '패배…' : '무승부';
   t.className = 'res ' + r;
   document.getElementById('resSub').textContent =
-    (byTime ? '시간 종료 · ' : '') + '내 체력 ' + Math.ceil(G.p.hp) + ' / 컴퓨터 체력 ' + Math.ceil(G.e.hp) + ' · ' + Math.round(G.time) + '초';
+    (byTime ? '시간 종료 · ' : '') + '내 체력 ' + Math.ceil(G.p.hp) + ' / 컴퓨터 체력 ' + Math.ceil(G.e.hp) + ' · ' + Math.round(G.time) + '초'
+    + ' · 상대 속성: 망치 ' + ELEMS[G.e.gear.w].name + ', 신발 ' + ELEMS[G.e.gear.s].name + ', 한방 ' + ELEMS[G.e.gear.x].name;
   setTimeout(() => resEl.classList.remove('hidden'), 500);
   beep(r === 'win' ? 660 : 160, 0.4, 'triangle', 0.07);
 }
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('retryBtn').addEventListener('click', startGame);
+document.getElementById('gearBtn').addEventListener('click', showTitle);
 
 newGame(); G.mode = 'title';   // 첫 화면 뒤에 경기장을 배경으로 보여 줌
 let last = performance.now();
@@ -1000,7 +1104,8 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // 시험용 창구 (자동 시험에서만 씀)
-window.__game = { get G() { return G; }, step, layout: () => L, start: startGame, ring: () => ringR(G.time) };
+window.__game = { get G() { return G; }, step, layout: () => L, start: startGame, ring: () => ringR(G.time),
+  setLoadout: o => { loadout = o; }, setCpuGear: o => { forcedCpuGear = o; } };
 })();
 </script>
 </body>
