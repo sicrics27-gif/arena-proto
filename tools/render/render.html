@@ -118,6 +118,164 @@ function pose(root, anim, t) {
   }
 }
 
+// ───────── 새 캐릭터(만화풍, v0.10): 남자·여자. 우리 고유 디자인 — 굵은 테두리와 단계 음영, 얼굴은 그려서 붙임 ─────────
+const GRAD = (() => { const t = new THREE.DataTexture(new Uint8Array([120, 185, 240, 255]), 4, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toon = (color, o) => new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: GRAD }, o || {}));
+const INK = new THREE.MeshBasicMaterial({ color: 0x2b2236, side: THREE.BackSide });
+function ink(m, t) {   // 테두리: 같은 모양을 살짝 키워 뒤집어 그림
+  m.geometry.computeBoundingSphere(); const R = (m.geometry.boundingSphere.radius || 0.1) * Math.cbrt(Math.abs(m.scale.x * m.scale.y * m.scale.z));
+  const o = new THREE.Mesh(m.geometry, INK); o.scale.setScalar(1 + (t || 0.02) / R); m.add(o); return m;
+}
+function faceTex(st, expr) {   // 얼굴 그림: normal 보통 / shout 기합 / hurt 아픔 / happy 기쁨
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.lineCap = 'round'; x.lineJoin = 'round';
+  const ey = 124, dx = 56, ew = st.fem ? 31 : 28, eh = st.fem ? 44 : 36, inkc = '#2b2236';
+  x.fillStyle = 'rgba(255,110,125,' + (st.fem ? 0.42 : 0.26) + ')'; for (const s of [-1, 1]) { x.beginPath(); x.ellipse(128 + s * (dx + 30), ey + 44, 24, 13, 0, 0, 7); x.fill(); }
+  for (const s of [-1, 1]) {
+    const ex = 128 + s * dx;
+    if (expr === 'hurt') { x.strokeStyle = inkc; x.lineWidth = 11; x.beginPath(); x.moveTo(ex - s * 24, ey - 20); x.lineTo(ex + s * 16, ey); x.lineTo(ex - s * 24, ey + 20); x.stroke(); }
+    else if (expr === 'happy') { x.strokeStyle = inkc; x.lineWidth = 11; x.beginPath(); x.arc(ex, ey + 14, 26, Math.PI * 1.12, Math.PI * 1.88); x.stroke(); }
+    else {
+      x.fillStyle = '#ffffff'; x.beginPath(); x.ellipse(ex, ey, ew + 4, eh + 2, 0, 0, 7); x.fill();
+      const g = x.createLinearGradient(0, ey - eh, 0, ey + eh); g.addColorStop(0, st.eye2); g.addColorStop(0.55, st.eye); g.addColorStop(1, st.eye3);
+      x.fillStyle = g; x.beginPath(); x.ellipse(ex, ey + 3, ew - 3, eh - 3, 0, 0, 7); x.fill();
+      x.fillStyle = '#1a1626'; x.beginPath(); x.ellipse(ex, ey - 2, ew * 0.42, eh * 0.5, 0, 0, 7); x.fill();
+      x.fillStyle = '#ffffff'; x.beginPath(); x.ellipse(ex - 10, ey - eh * 0.42, 10, 12, -0.3, 0, 7); x.fill(); x.beginPath(); x.arc(ex + 11, ey + eh * 0.42, 5, 0, 7); x.fill();
+      x.strokeStyle = inkc; x.lineWidth = st.fem ? 11 : 10; x.beginPath(); x.ellipse(ex, ey + 2, ew + 3, eh + 3, 0, Math.PI * 1.02, Math.PI * 1.98); x.stroke();   // 윗눈꺼풀
+      if (st.fem) { x.lineWidth = 6; x.beginPath(); x.moveTo(ex + s * (ew + 2), ey - 8); x.lineTo(ex + s * (ew + 16), ey - 22); x.stroke(); }                              // 속눈썹
+      x.lineWidth = 4; x.beginPath(); x.ellipse(ex, ey + 2, ew + 2, eh + 2, 0, Math.PI * 0.25, Math.PI * 0.75); x.stroke();
+    }
+    x.strokeStyle = st.brow; x.lineWidth = st.fem ? 6 : 9; x.beginPath();   // 눈썹
+    if (st.fem) { x.moveTo(ex - s * 26, ey - eh - 22); x.quadraticCurveTo(ex, ey - eh - 32, ex + s * 26, ey - eh - 20); }
+    else { const up = expr === 'shout' || expr === 'hurt' ? 12 : 4; x.moveTo(ex - s * 28, ey - eh - 10 - up + 16); x.lineTo(ex + s * 26, ey - eh - 26); }
+    x.stroke();
+  }
+  const my = ey + 70; x.strokeStyle = inkc; x.fillStyle = '#b8434f';
+  if (expr === 'shout' || expr === 'happy') { x.lineWidth = 6; x.beginPath(); x.moveTo(128 - 22, my - 8); x.quadraticCurveTo(128, my + (expr === 'happy' ? 34 : 26), 128 + 22, my - 8); x.closePath(); x.fill(); x.stroke(); }
+  else if (expr === 'hurt') { x.lineWidth = 6; x.beginPath(); x.ellipse(128, my + 2, 13, 16, 0, 0, 7); x.fill(); x.stroke(); }
+  else { x.lineWidth = 7; x.beginPath(); x.moveTo(128 - 15, my - 2); x.quadraticCurveTo(128, my + 12, 128 + 15, my - 2); x.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+const STYLES2 = {
+  m: { fem: false, shine: 0x6f82c8, hair: 0x2f3a66, c1: 0x3f86f0, c2: 0x27324f, c3: 0x7a4a2c, acc: 0xff5a4d, eye: '#3f8cff', eye2: '#16306b', eye3: '#9fd8ff', brow: '#232a4a' },
+  f: { fem: true, shine: 0xffd0df, hair: 0xff8fb0, c1: 0xe8394a, c2: 0xffffff, c3: 0x9a2f3c, acc: 0xffd24d, eye: '#ff7a3d', eye2: '#7a2416', eye3: '#ffd98a', brow: '#c2607c' },
+};
+function makeChar2(st) {
+  const root = new THREE.Group(), P = {};
+  const skin = toon(0xffe1cb), c1 = toon(st.c1), c2 = toon(st.c2), c3 = toon(st.c3), hairM = toon(st.hair), white = toon(0xffffff), acc = toon(st.acc), gold = toon(0xffcf5a);
+  const add = (par, m, x, y, z) => { m.position.set(x || 0, y || 0, z || 0); par.add(m); return m; };
+  const cyl = (rt, rb, h, m) => mesh(new THREE.CylinderGeometry(rt, rb, h, 20), m);
+  const body = new THREE.Group(); root.add(body); P.body = body;
+  for (const s of [-1, 1]) {   // 다리
+    const leg = new THREE.Group(); leg.position.set(s * 0.12, 0.5, 0); body.add(leg); P[s < 0 ? 'legR' : 'legL'] = leg;
+    add(leg, ink(cap(0.08, 0.2, st.fem ? skin : c2)), 0, -0.19, 0);
+    if (st.fem) add(leg, ink(cyl(0.09, 0.082, 0.2, white)), 0, -0.27, 0);            // 긴 양말
+    add(leg, ink(cyl(0.098, 0.105, 0.1, c3)), 0, -0.36, 0);
+    add(leg, ink(sph(0.118, c3, 1, 0.78, 1.5)), 0, -0.435, 0.05);                     // 신발
+  }
+  const torso = new THREE.Group(); torso.position.y = 0.5; body.add(torso); P.torso = torso;
+  if (st.fem) {
+    add(torso, ink(cyl(0.17, 0.37, 0.3, c1)), 0, 0.06, 0);                            // 치마
+    add(torso, ink(mesh(new THREE.TorusGeometry(0.355, 0.035, 10, 36), white)), 0, -0.085, 0).rotation.x = Math.PI / 2;
+    add(torso, ink(sph(0.2, white, 1, 1.1, 0.8)), 0, 0.27, 0);                        // 윗옷
+    add(torso, ink(mesh(new THREE.SphereGeometry(0.235, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.52), c1)), 0, 0.3, 0).scale.set(1.12, 0.8, 0.95);   // 어깨 망토
+    for (const s of [-1, 1]) add(torso, ink(sph(0.085, acc, 1.25, 0.8, 0.5)), s * 0.085, 0.33, 0.185).rotation.z = s * 0.4;   // 가슴 리본
+    add(torso, ink(sph(0.045, gold)), 0, 0.33, 0.2);
+  } else {
+    add(torso, ink(sph(0.215, c1, 1.02, 1.12, 0.8)), 0, 0.26, 0);                     // 겉옷
+    add(torso, ink(cyl(0.2, 0.215, 0.12, c2)), 0, 0.03, 0);                           // 허리
+    add(torso, mesh(new THREE.BoxGeometry(0.1, 0.34, 0.03), white), 0, 0.27, 0.165);  // 앞섶
+    add(torso, ink(mesh(new THREE.TorusGeometry(0.205, 0.032, 10, 32), gold)), 0, 0.085, 0).rotation.x = Math.PI / 2;   // 허리띠
+    add(torso, ink(mesh(new THREE.TorusGeometry(0.15, 0.062, 12, 30), acc)), 0, 0.47, 0).rotation.x = Math.PI / 2;      // 목도리
+    const tail = ink(cap(0.05, 0.22, acc)); add(torso, tail, -0.12, 0.36, -0.2); tail.rotation.set(-0.5, 0, 0.4); P.tail = tail;
+  }
+  add(torso, ink(cyl(0.065, 0.075, 0.1, skin)), 0, 0.5, 0);                          // 목
+  for (const s of [-1, 1]) {   // 팔
+    const arm = new THREE.Group(); arm.position.set(s * 0.25, 0.4, 0); torso.add(arm); P[s < 0 ? 'armR' : 'armL'] = arm;
+    add(arm, ink(cap(0.064, 0.15, st.fem ? white : c1)), 0, -0.12, 0);
+    add(arm, ink(cyl(0.074, 0.074, 0.05, st.fem ? c1 : white)), 0, -0.225, 0);
+    P[s < 0 ? 'handR' : 'handL'] = add(arm, ink(sph(0.078, skin)), 0, -0.295, 0);
+  }
+  const sword = new THREE.Group(); sword.position.y = -0.295; sword.scale.setScalar(0.9); P.armR.add(sword); P.sword = sword;
+  add(sword, ink(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 14), toon(0x7a5236))), 0, 0, 0.02).rotation.x = Math.PI / 2;
+  add(sword, ink(mesh(new RoundedBoxGeometry(0.34, 0.09, 0.09, 3, 0.035), gold)), 0, 0, 0.14);
+  add(sword, sph(0.055, toon(st.fem ? 0xff7ab0 : 0x6fe3ff)), 0, 0.035, 0.14);
+  const bladeM = toon(0xf2f7ff); add(sword, ink(mesh(new RoundedBoxGeometry(0.15, 0.05, 0.6, 2, 0.02), bladeM)), 0, 0, 0.48);
+  const tip = ink(mesh(new THREE.ConeGeometry(0.106, 0.18, 4), bladeM)); add(sword, tip, 0, 0, 0.87); tip.rotation.set(Math.PI / 2, Math.PI / 4, 0); tip.scale.set(1, 1, 0.33);
+  const head = new THREE.Group(); head.position.y = 0.9; torso.add(head); P.head = head;
+  add(head, ink(sph(0.42, skin, 1, 0.94, 0.96), 0.022));
+  for (const s of [-1, 1]) add(head, ink(sph(0.075, skin, 0.5, 1, 0.8)), s * 0.405, -0.04, 0);
+  P.faces = {}; for (const e of ['normal', 'shout', 'hurt', 'happy']) P.faces[e] = faceTex(st, e);
+  const face = mesh(new THREE.SphereGeometry(0.4245, 36, 24, Math.PI / 2 - 0.95, 1.9, 0.72, 1.5), new THREE.MeshBasicMaterial({ map: P.faces.normal, transparent: true, depthWrite: false })); face.scale.set(1, 0.94, 0.96); head.add(face); P.face = face;
+  const hg = new THREE.Group(); head.add(hg);
+  const capH = ink(mesh(new THREE.SphereGeometry(0.455, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.5), hairM), 0.022); add(hg, capH, 0, 0.02, -0.04); capH.rotation.x = -0.6;
+  const shine = mesh(new THREE.TorusGeometry(0.3, 0.022, 6, 28, 1.5), toon(st.shine)); add(hg, shine, 0, 0.3, 0.02); shine.rotation.set(-1.05, 0, Math.PI / 2 - 0.75);   // 머리카락 윤기
+  if (st.fem) {
+    [[-0.2, 0.17, 0.2], [0, 0.19, 0], [0.2, 0.17, -0.2]].forEach(([x, r, rz]) => { const b = ink(sph(r, hairM, 1.05, 0.7, 0.5)); add(hg, b, x, 0.235, 0.335 - Math.abs(x) * 0.22); b.rotation.set(0.35, 0, rz); });   // 앞머리
+    for (const s of [-1, 1]) {
+      const lock = ink(cap(0.06, 0.3, hairM)); add(hg, lock, s * 0.385, -0.12, 0.16); lock.rotation.z = s * 0.08;                    // 옆머리
+      const tg = new THREE.Group(); tg.position.set(s * 0.4, 0.2, -0.12); hg.add(tg); P[s < 0 ? 'tailR' : 'tailL'] = tg;             // 양 갈래 머리
+      for (const q of [-1, 1]) { const rb = ink(mesh(new THREE.ConeGeometry(0.07, 0.17, 10), acc)); add(tg, rb, 0.02 * s, 0.04, q * 0.07); rb.rotation.x = q * 1.9; }
+      const t1 = ink(cyl(0.125, 0.1, 0.42, hairM)); add(tg, t1, s * 0.1, -0.2, -0.02); t1.rotation.z = s * 0.42;
+      const t2 = ink(mesh(new THREE.ConeGeometry(0.105, 0.42, 16), hairM)); add(tg, t2, s * 0.245, -0.57, -0.02); t2.rotation.z = Math.PI + s * 0.3;
+    }
+  } else {
+    [[-0.31, 0.75, 0.85], [-0.18, 1.0, 0.45], [-0.03, 1.25, 0.08], [0.13, 1.0, -0.3], [0.27, 0.8, -0.7]].forEach(([x, len, rz]) => { const c = ink(mesh(new THREE.ConeGeometry(0.115, 0.34 * len, 10), hairM)); c.scale.set(1, 1, 0.42); add(hg, c, x, 0.27 - Math.abs(x) * 0.12, 0.385 - Math.abs(x) * 0.42); c.rotation.set(0.22, x * 1.1, Math.PI + rz * 0.5); });   // 삐죽한 앞머리(납작하게)
+    for (const s of [-1, 1]) { const c = ink(mesh(new THREE.ConeGeometry(0.09, 0.26, 10), hairM)); add(hg, c, s * 0.4, -0.02, 0.1); c.rotation.set(0.2, 0, Math.PI + s * 0.25); }   // 옆머리
+    [[0.3, 0.36, -0.1, -0.7], [-0.28, 0.38, -0.12, 0.7], [0.02, 0.45, -0.16, 0.05], [0.2, 0.22, -0.36, -1.0], [-0.2, 0.22, -0.36, 1.0], [0, 0.18, -0.44, 0]].forEach(([x, y, z, rz]) => { const c = ink(mesh(new THREE.ConeGeometry(0.11, 0.28, 10), hairM)); add(hg, c, x, y, z); c.rotation.set(-0.9 - z, 0, rz); });   // 뻗친 머리
+  }
+  root.userData.P = P; return root;
+}
+function pose2(root, anim, t) {
+  const P = root.userData.P, S = Math.sin, PI = Math.PI, TY = 0.5, HY = 0.9;
+  [P.body, P.torso, P.legL, P.legR, P.armL, P.armR, P.head, P.sword].forEach(o => o.rotation.set(0, 0, 0)); P.armR.rotation.order = 'YXZ'; P.sword.rotation.order = 'ZYX'; P.head.rotation.x = -0.1;
+  P.body.position.set(0, 0, 0); P.torso.position.set(0, TY, 0); P.head.position.y = HY; root.rotation.x = 0; root.position.set(0, 0, 0);
+  let ex = 'normal', sway = 0, lift = 0;
+  P.armL.rotation.z = 0.25; P.armR.rotation.z = -0.45; P.armR.rotation.x = -0.6; P.sword.rotation.x = -1.0;
+  const holdUp = sw => { P.armR.rotation.set(-0.25 + sw, 0, -0.75); P.sword.rotation.set(-1.5, 0, 1.0); };   // 검을 몸 옆에 세워 듦
+  if (anim === 'idle') { P.torso.position.y = TY + S(t * PI * 2) * 0.012; holdUp(0); }
+  else if (anim === 'walk') {
+    const a = S(t * PI * 2), b = Math.abs(a);
+    P.legL.rotation.x = a * 0.8; P.legR.rotation.x = -a * 0.8; P.armL.rotation.x = -a * 0.75; holdUp(a * 0.25);
+    P.torso.position.y = TY + b * 0.045; P.torso.rotation.x = 0.12; P.torso.rotation.z = a * 0.05; P.head.rotation.z = -a * 0.04; sway = a * 0.35; lift = 0.25;
+  } else if (anim === 'attack') {
+    const k = t, yaw = 1.15 - 2.4 * k;
+    P.torso.rotation.y = yaw * 0.32; P.torso.rotation.x = 0.12 + 0.1 * S(k * PI);
+    P.armR.rotation.set(-1.5, yaw * 0.75, 0); P.sword.rotation.x = 1.45;
+    P.armL.rotation.x = 0.5; P.armL.rotation.z = 0.6; P.legL.rotation.x = -0.4; P.legR.rotation.x = 0.4; ex = 'shout'; sway = -yaw * 0.3; lift = 0.3;
+  } else if (anim === 'cast') {
+    P.armL.rotation.set(-1.5, 0, 0.1); P.armR.rotation.set(0.2, 0, -0.5); P.sword.rotation.x = -0.4; P.torso.rotation.x = 0.08; P.legL.rotation.x = -0.3; P.legR.rotation.x = 0.3; ex = 'shout'; lift = 0.2;
+  } else if (anim === 'dash') {
+    P.torso.rotation.x = 0.55; P.armL.rotation.x = 1.1; P.armR.rotation.x = 1.0; P.sword.rotation.x = 0.4; P.legL.rotation.x = 0.9; P.legR.rotation.x = -0.6; P.head.rotation.x = -0.3; lift = 0.9;
+  } else if (anim === 'hit') {
+    P.torso.rotation.x = -0.35; P.armL.rotation.set(-0.6, 0, 1.2); P.armR.rotation.set(-0.6, 0, -1.2); P.head.rotation.x = -0.15; P.legL.rotation.x = -0.4; P.legR.rotation.x = -0.2; ex = 'hurt'; lift = -0.3;
+  } else if (anim === 'guard') {
+    P.armR.rotation.set(-1.15, 0.9, 0); P.sword.rotation.set(-1.2, 0, 0.9); P.armL.rotation.set(-1.0, -0.5, 0.3); P.torso.rotation.x = 0.16; P.legL.rotation.x = -0.25; P.legR.rotation.x = 0.25; P.torso.position.y = TY - 0.03;
+  } else if (anim === 'ko') {
+    root.rotation.x = -PI / 2; root.position.set(0, 0.24, 0.85); P.armL.rotation.z = 1.4; P.armR.rotation.z = -1.4; P.armR.rotation.x = 0; P.legL.rotation.z = 0.3; P.legR.rotation.z = -0.3; ex = 'hurt';
+  } else if (anim === 'win') {
+    const up = Math.abs(S(t * PI)); P.body.position.y = up * 0.2; P.armL.rotation.set(0, 0, 2.6); P.armR.rotation.set(-0.2, 0, -2.6); P.sword.rotation.x = -1.4; P.legL.rotation.x = -0.2 * up; P.legR.rotation.x = 0.2 * up; ex = 'happy'; lift = up * 0.5;
+  }
+  P.face.material.map = P.faces[ex];
+  if (P.tailL) { P.tailL.rotation.set(-lift * 0.5, 0, lift * 0.35 + sway * 0.4); P.tailR.rotation.set(-lift * 0.5, 0, -lift * 0.35 + sway * 0.4); }   // 양 갈래 머리 흔들림
+  if (P.tail) P.tail.rotation.set(-0.5 - lift * 0.6, 0, 0.4 + sway * 0.5);
+}
+function makeScene2() { const s = new THREE.Scene(); s.add(new THREE.HemisphereLight(0xffffff, 0xb8b0c8, 1.55)); const k = new THREE.DirectionalLight(0xffffff, 1.9); k.position.set(-3, 6.5, 4.5); s.add(k); return s; }
+function shoot2(scene, cam, size) { const tm = R.toneMapping; R.toneMapping = THREE.NoToneMapping; const c = shoot(scene, cam, size); R.toneMapping = tm; return c; }
+window.charSheet2 = (key, cell, cols) => {
+  const scene = makeScene2(), ch = makeChar2(STYLES2[key]); scene.add(ch);
+  const cam = makeCam(1.5, 0.80), frames = [];
+  for (let d = 0; d < 8; d++) {
+    const a = d * Math.PI / 4; ch.rotation.y = Math.atan2(Math.cos(a), Math.sin(a));
+    for (const [an, ts] of ANIMS) for (const t of ts) { pose2(ch, an, t); frames.push(shoot2(scene, cam, cell)); }
+  }
+  ch.rotation.y = 0; pose2(ch, 'ko', 0); frames.push(shoot2(scene, cam, cell));
+  for (const t of [0.15, 0.6]) { pose2(ch, 'win', t); frames.push(shoot2(scene, cam, cell)); }
+  const rows = Math.ceil(frames.length / cols), sheet = document.createElement('canvas'); sheet.width = cols * cell; sheet.height = rows * cell;
+  const x = sheet.getContext('2d'); frames.forEach((f, i) => x.drawImage(f, (i % cols) * cell, Math.floor(i / cols) * cell));
+  return { n: frames.length, cols, rows, url: sheet.toDataURL('image/png') };
+};
+window.charOne2 = (key, an, t, d, size, half, lookY) => { const scene = makeScene2(), ch = makeChar2(STYLES2[key]); scene.add(ch); const a = d * Math.PI / 4; ch.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); pose2(ch, an, t); return shoot2(scene, makeCam(half || 1.5, lookY === undefined ? 0.80 : lookY), size).toDataURL('image/png'); };
+
 // ───────── 찍기 ─────────
 function shoot(scene, cam, size) {   // WebGL로 찍어서 2D 캔버스에 줄여 담아 돌려줌
   R.setSize(size * SS, size * SS, false); R.render(scene, cam);

@@ -13,7 +13,7 @@ async def job(pg):
     for el in ['fire', 'water', 'wind', 'earth']:
         for f in range(6):
             items.append((f's_{el}{f}', img(await pg.evaluate('([n,t])=>propShot(n,0.7,0.5,96,t)', ['s_' + el, f / 6])), 0.7, 0.5))
-    for k in ['p', 'e']: items.append((f'face_{k}', img(await pg.evaluate('(k)=>faceShot(k,112)', k)), 0.66, 0.5))
+    for k in ['m', 'f']: items.append((f'face_{k}', img(await pg.evaluate('(k)=>charOne2(k,"idle",0,2,112,0.52,1.40)', k)), 0.52, 0.5))   # 표시줄 얼굴 (새 캐릭터)
     for el in ['fire', 'water', 'wind', 'earth']:
         for f in range(2):
             items.append((f'k_{el}{f}', img(await pg.evaluate('([n,t])=>propShot(n,0.78,0.5,120,t)', ['k_' + el, f / 2])), 0.78, 0.5 + 0.5 * cosp / (2 * 0.78)))
@@ -23,7 +23,7 @@ async def job(pg):
     for n, im, half, ay in items:
         if x + im.width > W: x = 0; y += rowh; rowh = 0
         meta['spr'][n] = [x, y, im.width, im.height, half, round(ay, 4)]; x += im.width; rowh = max(rowh, im.height)
-    moved = [n for n in old if old[n] != meta['spr'][n]]
+    moved = [n for n in old if n in meta['spr'] and old[n][:4] != meta['spr'][n][:4]]
     sheet = Image.new('RGBA', (W, y + rowh), (0, 0, 0, 0))
     for n, im, half, ay in items: sheet.paste(im, tuple(meta['spr'][n][:2]))
     sheet.save(f'{OUT}/misc.webp', 'WEBP', quality=92, method=6); print('misc', sheet.size, os.path.getsize(f'{OUT}/misc.webp'), '자리 바뀐 기존 그림:', moved)
