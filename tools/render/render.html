@@ -206,6 +206,42 @@ const BUILD = {
     for (let i = 0; i < 3; i++) { const a = i * 2.1 + t * Math.PI * 2, o = mesh(new THREE.DodecahedronGeometry(0.12, 0), m); o.position.set(Math.cos(a) * 0.52, Math.sin(a * 2) * 0.1, Math.sin(a) * 0.52); g.add(o); }
     g.position.y = 0.5; return g; },
 };
+// ───────── 깨비: 경기장을 돌아다니는 작은 생물 (우리 고유 디자인: 뿔 하나 달린 동그란 몸). t = 0~1 흔들림 ─────────
+const KCOL = { fire: [0xff6a35, 0xb02800, 0xffe08a], water: [0x45b4ff, 0x0b57b0, 0xeaf8ff], wind: [0x6fe3a5, 0x0f8a50, 0xf6fff2], earth: [0xb98a55, 0x5a3a1c, 0xefe2c8] };
+function kkaebi(el, t) {
+  const g = new THREE.Group(), w = Math.sin(t * Math.PI * 2), C = KCOL[el];
+  const bodyM = el === 'earth' ? new THREE.MeshStandardMaterial({ color: C[0], roughness: 0.82, flatShading: true })
+    : mat(C[0], { roughness: el === 'water' ? 0.05 : 0.32, clearcoat: 1, emissive: C[1], emissiveIntensity: el === 'fire' ? 0.7 : 0.45 });
+  const body = el === 'earth' ? mesh(new THREE.IcosahedronGeometry(0.37, 1), bodyM) : sph(0.35, bodyM, 1, 0.95 + 0.04 * w, 1);
+  body.position.y = 0.5; if (el === 'earth') body.rotation.set(0.2, 0.35, 0.1); g.add(body);
+  const horn = mesh(new THREE.ConeGeometry(0.085, 0.25, 18), mat(C[2], { roughness: 0.3, clearcoat: 1 })); horn.position.set(0.03, 0.91, 0.06); horn.rotation.z = -0.14; g.add(horn);
+  for (const sx of [-1, 1]) {
+    const eye = sph(0.064, mat(0x15171c, { roughness: 0.06, clearcoat: 1 }), 1, 1.28, 0.7); eye.position.set(sx * 0.13, 0.55, 0.318); g.add(eye);
+    const hl = sph(0.021, new THREE.MeshBasicMaterial({ color: 0xffffff })); hl.position.set(sx * 0.13 - 0.02, 0.59, 0.363); g.add(hl);
+    const ck = sph(0.05, new THREE.MeshBasicMaterial({ color: 0xffa3b0, transparent: true, opacity: 0.7 }), 1.25, 0.7, 0.4); ck.position.set(sx * 0.235, 0.455, 0.262); g.add(ck);
+    const hand = sph(0.078, bodyM, 1, 1, 1); hand.position.set(sx * 0.385, 0.4 + 0.035 * w * sx, 0.1); g.add(hand);
+  }
+  const mouth = mesh(new THREE.TorusGeometry(0.036, 0.013, 8, 18, Math.PI), mat(0x35191c, { roughness: 0.6 })); mouth.position.set(0, 0.465, 0.338); mouth.rotation.z = Math.PI; g.add(mouth);
+  if (el === 'fire') for (let i = 0; i < 6; i++) {   // 등 뒤로 타오르는 불꽃 갈기
+    const a = -1.15 + i * 0.46, h = 0.3 + 0.08 * Math.sin(i * 2.1 + t * 6.283), c = mesh(new THREE.ConeGeometry(0.085, h, 10), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffc04a : 0xff5a1e }));
+    c.position.set(Math.sin(a) * 0.34, 0.56 + Math.cos(a) * 0.34, -0.14); c.rotation.z = -a; g.add(c); }
+  if (el === 'water') {   // 물방울 꼬리와 주위를 도는 방울
+    const tip = mesh(new THREE.ConeGeometry(0.2, 0.34, 24), bodyM); tip.position.set(-0.05, 0.86, -0.12); tip.rotation.set(-0.35, 0, 0.2); g.add(tip);
+    for (let i = 0; i < 3; i++) { const a = i * 2.09 + t * 6.283, o = sph(0.06 - i * 0.008, mat(0xdff4ff, { roughness: 0.05, clearcoat: 1, emissive: 0x5aaee6, emissiveIntensity: 0.6 })); o.position.set(Math.cos(a) * 0.5, 0.5 + Math.sin(a * 1.5) * 0.16, Math.sin(a) * 0.3 - 0.05); g.add(o); } }
+  if (el === 'wind') for (const sx of [-1, 1]) {   // 양옆의 작은 날개
+    const wm = mat(0xf2fff6, { roughness: 0.25, clearcoat: 1, emissive: 0x4fd89a, emissiveIntensity: 0.45 });
+    [[0.5, 0.7, 0.15, 0.75], [0.52, 0.56, 0.115, 0.3]].forEach(([x, y, r, rz], i) => { const wg = sph(r, wm, 1.9, 0.36, 0.8); wg.position.set(sx * x, y + 0.03 * w * (i ? -1 : 1), -0.1); wg.rotation.z = sx * (rz + 0.18 * w); g.add(wg); }); }
+  if (el === 'earth') {   // 머리의 새싹과 주위의 돌멩이
+    for (const sx of [-1, 1]) { const lf = sph(0.085, mat(0x58b860, { roughness: 0.5 }), 1.5, 0.3, 0.8); lf.position.set(-0.13 + sx * 0.085, 0.93, 0.02); lf.rotation.z = sx * 0.6; g.add(lf); }
+    for (let i = 0; i < 3; i++) { const a = i * 2.09 + 0.6 + t * 6.283, o = mesh(new THREE.DodecahedronGeometry(0.075 - i * 0.012, 0), bodyM); o.position.set(Math.cos(a) * 0.52, 0.34 + 0.1 * Math.sin(a * 2), Math.sin(a) * 0.3); g.add(o); } }
+  g.position.y = 0.06 + 0.03 * w; return g;
+}
+for (const el of ['fire', 'water', 'wind', 'earth']) BUILD['k_' + el] = (t) => kkaebi(el, t);
+// 깨비 구슬: 강화에 쓰는 속성 구슬
+for (const el of ['fire', 'water', 'wind', 'earth']) BUILD['b_' + el] = () => { const g = new THREE.Group(), C = KCOL[el];
+  const o = sph(0.27, mat(C[0], { roughness: 0.05, clearcoat: 1, emissive: C[1], emissiveIntensity: 0.6 })); o.position.y = 0.3; g.add(o);
+  const shine = sph(0.05, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 }), 1.3, 0.8, 0.5); shine.position.set(-0.1, 0.44, 0.2); shine.rotation.z = 0.5; g.add(shine);
+  const horn = mesh(new THREE.ConeGeometry(0.06, 0.16, 14), mat(C[2], { roughness: 0.3, clearcoat: 1 })); horn.position.set(0.02, 0.6, 0.02); horn.rotation.z = -0.14; g.add(horn); return g; };
 // name: 무엇을, half: 화면 반 크기(모형 단위), lookY: 바라보는 높이, size: 그림 크기, t: 돌리는 정도
 window.propShot = (name, half, lookY, size, t) => { const scene = makeScene(); scene.add(BUILD[name](t || 0)); return shoot(scene, makeCam(half, lookY), size).toDataURL('image/png'); };
 window.faceShot = (key, size) => { const scene = makeScene(), ch = makeChar(STYLES[key]); scene.add(ch); pose(ch, 'idle', 0); return shoot(scene, makeCam(0.66, 1.34), size).toDataURL('image/png'); };
