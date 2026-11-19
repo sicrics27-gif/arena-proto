@@ -159,7 +159,7 @@ const STYLES2 = {
   m: { fem: false, shine: 0x6f82c8, hair: 0x2f3a66, c1: 0x3f86f0, c2: 0x27324f, c3: 0x7a4a2c, acc: 0xff5a4d, eye: '#3f8cff', eye2: '#16306b', eye3: '#9fd8ff', brow: '#232a4a' },
   f: { fem: true, shine: 0xffd0df, hair: 0xff8fb0, c1: 0xe8394a, c2: 0xffffff, c3: 0x9a2f3c, acc: 0xffd24d, eye: '#ff7a3d', eye2: '#7a2416', eye3: '#ffd98a', brow: '#c2607c' },
 };
-function makeChar2(st) {
+function makeChar2(st, wt) {
   const root = new THREE.Group(), P = {};
   const skin = toon(0xffe1cb), c1 = toon(st.c1), c2 = toon(st.c2), c3 = toon(st.c3), hairM = toon(st.hair), white = toon(0xffffff), acc = toon(st.acc), gold = toon(0xffcf5a);
   const add = (par, m, x, y, z) => { m.position.set(x || 0, y || 0, z || 0); par.add(m); return m; };
@@ -196,11 +196,34 @@ function makeChar2(st) {
     P[s < 0 ? 'handR' : 'handL'] = add(arm, ink(sph(0.078, skin)), 0, -0.295, 0);
   }
   const sword = new THREE.Group(); sword.position.y = -0.295; sword.scale.setScalar(0.9); P.armR.add(sword); P.sword = sword;
-  add(sword, ink(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 14), toon(0x7a5236))), 0, 0, 0.02).rotation.x = Math.PI / 2;
-  add(sword, ink(mesh(new RoundedBoxGeometry(0.34, 0.09, 0.09, 3, 0.035), gold)), 0, 0, 0.14);
-  add(sword, sph(0.055, toon(st.fem ? 0xff7ab0 : 0x6fe3ff)), 0, 0.035, 0.14);
-  const bladeM = toon(0xf2f7ff); add(sword, ink(mesh(new RoundedBoxGeometry(0.15, 0.05, 0.6, 2, 0.02), bladeM)), 0, 0, 0.48);
-  const tip = ink(mesh(new THREE.ConeGeometry(0.106, 0.18, 4), bladeM)); add(sword, tip, 0, 0, 0.87); tip.rotation.set(Math.PI / 2, Math.PI / 4, 0); tip.scale.set(1, 1, 0.33);
+  P.wt = wt || 'w';
+  const gemM = toon(st.fem ? 0xff7ab0 : 0x6fe3ff), wood = toon(0x7a5236), steel = toon(0xc9d3e0), dark = toon(0x55607a), cord = toon(0xf4f1e6);
+  if (P.wt === 'm') {   // 둔기: 긴 자루 + 묵직한 머리
+    add(sword, ink(mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.62, 14), wood)), 0, 0, 0.24).rotation.x = Math.PI / 2;
+    add(sword, ink(mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.06, 14), gold)), 0, 0, -0.07).rotation.x = Math.PI / 2;
+    add(sword, ink(mesh(new RoundedBoxGeometry(0.34, 0.34, 0.38, 3, 0.08), steel)), 0, 0, 0.7);
+    
+    for (const [x, y] of [[0.19, 0], [-0.19, 0], [0, 0.19], [0, -0.19]]) add(sword, ink(sph(0.062, dark)), x, y, 0.7);
+    add(sword, sph(0.065, gemM), 0, 0, 0.905);
+  } else if (P.wt === 'c') {   // 석궁: 몸통 + 뒤로 휜 활대 + 줄 + 화살
+    add(sword, ink(mesh(new RoundedBoxGeometry(0.13, 0.13, 0.66, 2, 0.04), wood)), 0, 0, 0.3);
+    for (const s of [-1, 1]) { const limb = ink(mesh(new RoundedBoxGeometry(0.38, 0.09, 0.1, 2, 0.03), dark)); add(sword, limb, s * 0.19, 0.01, 0.55); limb.rotation.y = s * 0.5; add(sword, ink(sph(0.06, gold)), s * 0.355, 0.01, 0.46); }
+    add(sword, mesh(new THREE.BoxGeometry(0.7, 0.026, 0.026), cord), 0, 0.04, 0.455);
+    add(sword, ink(mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.5, 8), cord)), 0, 0.095, 0.46).rotation.x = Math.PI / 2;
+    add(sword, ink(mesh(new THREE.ConeGeometry(0.06, 0.14, 8), gold)), 0, 0.095, 0.77).rotation.x = Math.PI / 2;
+    add(sword, sph(0.05, gemM), 0, 0.065, 0.14);
+  } else if (P.wt === 't') {   // 지팡이: 긴 막대 + 고리 + 구슬
+    add(sword, ink(mesh(new THREE.CylinderGeometry(0.042, 0.036, 1.0, 14), wood)), 0, 0, 0.28).rotation.x = Math.PI / 2;
+    add(sword, ink(mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.05, 12), gold)), 0, 0, -0.22).rotation.x = Math.PI / 2;
+    add(sword, ink(mesh(new THREE.TorusGeometry(0.17, 0.04, 10, 24), gold)), 0, 0, 0.94).rotation.y = Math.PI / 2;
+    add(sword, ink(sph(0.12, gemM)), 0, 0, 0.94);
+  } else {
+    add(sword, ink(mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 14), toon(0x7a5236))), 0, 0, 0.02).rotation.x = Math.PI / 2;
+    add(sword, ink(mesh(new RoundedBoxGeometry(0.34, 0.09, 0.09, 3, 0.035), gold)), 0, 0, 0.14);
+    add(sword, sph(0.055, toon(st.fem ? 0xff7ab0 : 0x6fe3ff)), 0, 0.035, 0.14);
+      const bladeM = toon(0xf2f7ff); add(sword, ink(mesh(new RoundedBoxGeometry(0.15, 0.05, 0.6, 2, 0.02), bladeM)), 0, 0, 0.48);
+    const tip = ink(mesh(new THREE.ConeGeometry(0.106, 0.18, 4), bladeM)); add(sword, tip, 0, 0, 0.87); tip.rotation.set(Math.PI / 2, Math.PI / 4, 0); tip.scale.set(1, 1, 0.33);
+  }
   const head = new THREE.Group(); head.position.y = 0.9; torso.add(head); P.head = head;
   add(head, ink(sph(0.42, skin, 1, 0.94, 0.96), 0.022));
   for (const s of [-1, 1]) add(head, ink(sph(0.075, skin, 0.5, 1, 0.8)), s * 0.405, -0.04, 0);
@@ -244,6 +267,7 @@ function pose2(root, anim, t) {
     P.armL.rotation.x = 0.5; P.armL.rotation.z = 0.6; P.legL.rotation.x = -0.4; P.legR.rotation.x = 0.4; ex = 'shout'; sway = -yaw * 0.3; lift = 0.3;
   } else if (anim === 'cast') {
     P.armL.rotation.set(-1.5, 0, 0.1); P.armR.rotation.set(0.2, 0, -0.5); P.sword.rotation.x = -0.4; P.torso.rotation.x = 0.08; P.legL.rotation.x = -0.3; P.legR.rotation.x = 0.3; ex = 'shout'; lift = 0.2;
+    if (P.wt === 'c' || P.wt === 't') { P.armR.rotation.set(-1.45, -0.12, 0); P.sword.rotation.set(1.45, 0, 0); P.armL.rotation.set(-1.2, 0.55, 0.2); }
   } else if (anim === 'dash') {
     P.torso.rotation.x = 0.55; P.armL.rotation.x = 1.1; P.armR.rotation.x = 1.0; P.sword.rotation.x = 0.4; P.legL.rotation.x = 0.9; P.legR.rotation.x = -0.6; P.head.rotation.x = -0.3; lift = 0.9;
   } else if (anim === 'hit') {
@@ -261,8 +285,8 @@ function pose2(root, anim, t) {
 }
 function makeScene2() { const s = new THREE.Scene(); s.add(new THREE.HemisphereLight(0xffffff, 0xb8b0c8, 1.55)); const k = new THREE.DirectionalLight(0xffffff, 1.9); k.position.set(-3, 6.5, 4.5); s.add(k); return s; }
 function shoot2(scene, cam, size) { const tm = R.toneMapping; R.toneMapping = THREE.NoToneMapping; const c = shoot(scene, cam, size); R.toneMapping = tm; return c; }
-window.charSheet2 = (key, cell, cols) => {
-  const scene = makeScene2(), ch = makeChar2(STYLES2[key]); scene.add(ch);
+window.charSheet2 = (key, cell, cols, wt) => {
+  const scene = makeScene2(), ch = makeChar2(STYLES2[key], wt); scene.add(ch);
   const cam = makeCam(1.5, 0.80), frames = [];
   for (let d = 0; d < 8; d++) {
     const a = d * Math.PI / 4; ch.rotation.y = Math.atan2(Math.cos(a), Math.sin(a));
@@ -274,7 +298,7 @@ window.charSheet2 = (key, cell, cols) => {
   const x = sheet.getContext('2d'); frames.forEach((f, i) => x.drawImage(f, (i % cols) * cell, Math.floor(i / cols) * cell));
   return { n: frames.length, cols, rows, url: sheet.toDataURL('image/png') };
 };
-window.charOne2 = (key, an, t, d, size, half, lookY) => { const scene = makeScene2(), ch = makeChar2(STYLES2[key]); scene.add(ch); const a = d * Math.PI / 4; ch.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); pose2(ch, an, t); return shoot2(scene, makeCam(half || 1.5, lookY === undefined ? 0.80 : lookY), size).toDataURL('image/png'); };
+window.charOne2 = (key, an, t, d, size, half, lookY, wt) => { const scene = makeScene2(), ch = makeChar2(STYLES2[key], wt); scene.add(ch); const a = d * Math.PI / 4; ch.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); pose2(ch, an, t); return shoot2(scene, makeCam(half || 1.5, lookY === undefined ? 0.80 : lookY), size).toDataURL('image/png'); };
 
 // ───────── 찍기 ─────────
 function shoot(scene, cam, size) {   // WebGL로 찍어서 2D 캔버스에 줄여 담아 돌려줌
