@@ -105,7 +105,7 @@
 
 <div class="overlay" id="titleScreen">
   <div class="card">
-    <div class="tag">대기실 · 시험판 v0.13 · 이름·그림 모두 임시</div>
+    <div class="tag">대기실 · 시험판 v0.14 · 이름·그림 모두 임시</div>
     <div class="ltop"><div class="wallet" id="wallet"></div><div class="rec" id="rec"></div></div>
     <div class="lmid">
       <img class="pt" id="lobbyPt" alt="">
@@ -120,9 +120,9 @@
       <summary>조작법·규칙 보기</summary>
     <ul class="how">
       <li><b>대기실</b>: 방 만들기에서 상대 수준을 고르고 시작합니다. 상점에서 구슬로 새 장비를 사고, 장비·강화에서 끼고 단계를 올립니다</li>
-      <li><b>왼쪽 아래</b>를 누른 채 끌면 이동. 화면이 내 캐릭터를 따라가고, 작은 지도에 나(파랑)·상대(빨강)·깨비와 지금 화면에 보이는 범위(흰 네모)가 나옵니다</li>
+      <li><b>화면 왼쪽 아래 아무 데나</b> 누른 채 끌면 그 자리에 이동 막대가 생깁니다. 화면이 내 캐릭터를 따라가고, 작은 지도에 나(파랑)·상대(빨강)·깨비와 지금 화면에 보이는 범위(흰 네모)가 나옵니다</li>
       <li><b>이동</b>: 막대를 끝까지 밀면 달립니다. 출발할 때 확 튀어 나가고 점점 빨라집니다(신발이 정함, 바람이 가장 빠름). 달리기 기력(하늘색)을 쓰고, 바닥나면 걷습니다. 조금만 밀면 걷기</li>
-      <li><b>공격</b>: 가까이서 휘두릅니다. 연속 3번째 타격이 상대를 멀리 밀어냅니다. 공격 기력(노랑)을 조금 씁니다</li>
+      <li><b>공격</b>: 가까이서 휘두릅니다. 연속 3번째 타격이 상대를 멀리 밀어냅니다. 기력을 쓰지 않습니다</li>
       <li><b>쏘기</b>: 짧게 누르면 멀리 한 발. <b>꾹 누르면 필살기</b>(공격 기력을 많이 씀, 버튼 둘레 보라 점까지 차면 쓸 수 있음)</li>
       <li><b>기력 회복</b>: 공격 기력·달리기 기력 모두 가만히 있으면 빨리, 걸으면 조금 찹니다. 달리거나 공격하는 동안은 안 찹니다. 막기에 성공하면 한 번에 찹니다</li>
       <li><b>지형물</b>: 돌탑·석등·우물·짚더미·나무는 지나갈 수 없고 탄을 막아 줍니다. 밀고 가면 옆으로 돌아갑니다. 연못은 지나갈 수 없지만 탄은 넘어갑니다</li>
@@ -180,7 +180,7 @@
 
 <div class="overlay hidden" id="resultScreen">
   <div class="card">
-    <div class="tag">시험판 v0.13</div>
+    <div class="tag">시험판 v0.14</div>
     <p class="res" id="resText">승리!</p>
     <p class="sub" id="resSub"></p>
     <div class="loot" id="resLoot"></div>
@@ -240,10 +240,10 @@ const invSlot = k => (k === 's' || k === 'x') ? k : 'w';
 // 무기 종류 = 손맛(바탕 능력). 누구나 근접(공격)과 원거리(쏘기)를 다 쓰고, 종류마다 잘하는 쪽이 다름
 //   melee: 피해·빠르기·밀어내기 배율, 닿는 거리 / shot: 피해, 탄 속도, 사거리, 기력, 쏘는 간격, 밀어내기, 크기, 움찔하는 시간
 const WEAPONS = {
-  w: { name: '검',     desc: '빠르고 가벼운 근접 무기. 쏘기는 짧게 나가는 칼바람',            melee: { dmg: 1,   spd: 1,    kb: 1,   reach: 44 }, shot: { dmg: 3,   speed: 560, range: 250, cost: 15, cd: 0.5,  kb: 150, r: 9,  stun: 0.12 } },
-  m: { name: '둔기',   desc: '느리지만 아프고 멀리 밀어냅니다. 쏘기는 짧고 묵직한 땅울림',    melee: { dmg: 1.6, spd: 0.72, kb: 1.5, reach: 50 }, shot: { dmg: 4.5, speed: 330, range: 200, cost: 22, cd: 0.9,  kb: 340, r: 15, stun: 0.25 } },
-  c: { name: '석궁',   desc: '멀리 빠르게 여러 발 쏩니다. 근접은 약합니다',                    melee: { dmg: 0.7, spd: 1,    kb: 0.8, reach: 40 }, shot: { dmg: 2.6, speed: 780, range: 520, cost: 10, cd: 0.36, kb: 80,  r: 7,  stun: 0.08 } },
-  t: { name: '지팡이', desc: '느리지만 묵직한 기운탄을 쏩니다. 근접은 조금 약합니다',          melee: { dmg: 0.8, spd: 0.9,  kb: 1.2, reach: 46 }, shot: { dmg: 5.5, speed: 400, range: 460, cost: 18, cd: 0.75, kb: 300, r: 12, stun: 0.2 } },
+  w: { name: '검',     desc: '빠르고 가벼운 근접 무기. 쏘기는 짧게 나가는 칼바람',            melee: { dmg: 1,   spd: 1,    kb: 1,   reach: 44 }, shot: { dmg: 3,   speed: 560, range: 250, cost: 8, cd: 0.5,  kb: 150, r: 9,  stun: 0.12 } },
+  m: { name: '둔기',   desc: '느리지만 아프고 멀리 밀어냅니다. 쏘기는 짧고 묵직한 땅울림',    melee: { dmg: 1.6, spd: 0.72, kb: 1.5, reach: 50 }, shot: { dmg: 4.5, speed: 330, range: 200, cost: 12, cd: 0.9,  kb: 340, r: 15, stun: 0.25 } },
+  c: { name: '석궁',   desc: '멀리 빠르게 여러 발 쏩니다. 근접은 약합니다',                    melee: { dmg: 0.7, spd: 1,    kb: 0.8, reach: 40 }, shot: { dmg: 2.6, speed: 780, range: 520, cost: 5, cd: 0.36, kb: 80,  r: 7,  stun: 0.08 } },
+  t: { name: '지팡이', desc: '느리지만 묵직한 기운탄을 쏩니다. 근접은 조금 약합니다',          melee: { dmg: 0.8, spd: 0.9,  kb: 1.2, reach: 46 }, shot: { dmg: 5.5, speed: 400, range: 460, cost: 10, cd: 0.75, kb: 300, r: 12, stun: 0.2 } },
 };
 const GEAR_DESC = {
   w: { fire: '맞은 상대가 2초 동안 불탑니다. 단계가 오르면 피해가 크게 자랍니다', water: '맞은 상대가 잠깐 느려집니다. 기력을 아주 적게 씁니다', wind: '훨씬 빨리 휘두르고 쏩니다. 대신 기력을 더 씁니다', earth: '상대를 훨씬 멀리 밀어냅니다' },
@@ -273,25 +273,25 @@ const CHARS = {
 // 발동: 장비의 속성 효과와 기본 옵션은 확률로 켜짐. 안 켜지면 캐릭터의 기본 공격·기본 이동
 //   발동률(%) = 바탕 + 단계마다 + 같은 속성 세트(2개·3개) + 캐릭터와 어울리는 속성. 신발은 회피할 때 굴리고, 켜지면 shoeT초 동안 유지
 const PROC = { base: 40, perLv: 4, set2: 7, set3: 14, aff: 5, shoeT: 4 };
-const EN = { stand: 28, walk: 12, wait: 0.45, dash: 22, guard: 15, guardBolt: 5 };   // 기력 두 가지(공격 기력·달리기 기력) 모두: 서 있을 때·걸을 때 초당 회복, 행동 뒤 회복이 멈추는 시간. 회피에 드는 달리기 기력, 막기에 성공하면 차는 양
-const MELEE_COST = { w: 2, m: 4, c: 1.5, t: 2 };   // 근접 한 번에 드는 공격 기력 (3번째 타격은 두 배)
+const EN = { stand: 45, walk: 24, wait: 0.25, dash: 14, guard: 25, guardBolt: 8 };   // 기력 두 가지(공격 기력·달리기 기력) 모두: 서 있을 때·걸을 때 초당 회복, 행동 뒤 회복이 멈추는 시간. 회피에 드는 달리기 기력, 막기에 성공하면 차는 양
+const MELEE_COST = { w: 0, m: 0, c: 0, t: 0 };   // 근접(기본 공격)은 기력을 쓰지 않음. 기력은 쏘기·필살기·달리기·회피에만
 const HOLD = 0.28;                               // 쏘기를 이만큼 누르고 있으면 필살기
 const WALK = 0.55;                               // 걷기 속도(바탕 속도의 몇 배). 막대를 조금만 밀거나 달리기 기력이 바닥나면 걸음
 const STRONG = { t: 1.6, dmg: 1.5, kb: 1.35 }, BACK = { dmg: 1.35, kb: 1.15, ang: 1.95 }, BOTH_KB = 1.9;   // 막기 성공 뒤 강공격, 뒤에서 치는 백어택, 둘 다면 멀리 날아감
 // 신발 = 달리기: 첫 가속(출발할 때 최고 속도의 몇 할), 최고 속도까지 걸리는 시간(초), 최고 속도(바탕의 몇 배), 달리기 기력 소모(초당). 1단계 → 10단계. 바람이 가장 빠름
 const S_RUN = {
-  fire:  { launch: [0.55, 0.80], accel: [1.0, 0.7], top: [1.20, 1.38], drain: [18, 14] },
-  water: { launch: [0.45, 0.65], accel: [1.4, 1.0], top: [1.15, 1.30], drain: [12, 8] },
-  wind:  { launch: [0.50, 0.70], accel: [1.2, 0.8], top: [1.30, 1.55], drain: [20, 15] },
-  earth: { launch: [0.45, 0.65], accel: [1.6, 1.1], top: [1.10, 1.24], drain: [14, 10] },
+  fire:  { launch: [0.55, 0.80], accel: [1.0, 0.7], top: [1.20, 1.38], drain: [8, 6] },
+  water: { launch: [0.45, 0.65], accel: [1.4, 1.0], top: [1.15, 1.30], drain: [5, 3.5] },
+  wind:  { launch: [0.50, 0.70], accel: [1.2, 0.8], top: [1.30, 1.55], drain: [9, 7] },
+  earth: { launch: [0.45, 0.65], accel: [1.6, 1.1], top: [1.10, 1.24], drain: [6, 4.5] },
 };   // 기력: 서 있을 때·걸을 때 초당 회복, 행동 뒤 회복이 멈추는 시간, 근접을 맞히면 차는 양
 const SHOTS = {   // 한방 속성별: 피해, 날아가는 속도, 크기, 다시 쓰기까지 시간
-  fire:  { cost: 35, dmg: 24, speed: 540, r: 12, cd: 6 },
-  water: { cost: 30, dmg: 16, speed: 540, r: 12, cd: 6 },
-  wind:  { cost: 28, dmg: 20, speed: 800, r: 11, cd: 4.5 },
-  earth: { cost: 42, dmg: 34, speed: 380, r: 17, cd: 6.5 },
+  fire:  { cost: 26, dmg: 24, speed: 540, r: 12, cd: 6 },
+  water: { cost: 22, dmg: 16, speed: 540, r: 12, cd: 6 },
+  wind:  { cost: 20, dmg: 20, speed: 800, r: 11, cd: 4.5 },
+  earth: { cost: 32, dmg: 34, speed: 380, r: 17, cd: 6.5 },
 };
-const SHOT0 = { cost: 32, dmg: 18, speed: 540, r: 12, cd: 6 };   // 발동이 안 된 한방(속성 효과 없음)
+const SHOT0 = { cost: 24, dmg: 18, speed: 540, r: 12, cd: 6 };   // 발동이 안 된 한방(속성 효과 없음)
 const BURN_DPS = 1.5;
 const OWN0 = { wt: 'w', w: 'fire', s: 'wind', x: 'water' };   // 처음부터 가진 장비: 불 검, 바람 신발, 물 한방
 let loadout = Object.assign({}, OWN0);   // 내가 낀 장비 (이 기기에만 기억). wt = 무기 종류, w·s·x = 속성
@@ -391,14 +391,14 @@ function layout() {
   const by = H - (portrait ? ctrlH / 2 : Math.min(H * 0.3, 110));
   L = {
     hud, portrait, ctrlH, u, areaH,
-    joyZoneTop: portrait ? H - ctrlH : hud + 10,
-    joyHome: { x: Math.max(70 * u, Math.min(W * 0.24, 110)), y: by },
-    joyR: 46 * u,
+    joyZoneTop: portrait ? H * 0.42 : hud + 112,   // 왼쪽 절반 아래쪽 어디를 눌러도 그 자리에 이동 막대가 생김
+    joyHome: { x: Math.max(74 * u, Math.min(W * 0.22, 120)), y: by + 6 * u },
+    joyR: 50 * u,
     btn: {
-      attack: { x: W - 58 * u,  y: by + 22 * u, r: 40 * u, label: '공격', color: '#ff7d7d' },
-      fire:   { x: W - 64 * u,  y: by - 68 * u, r: 35 * u, label: '쏘기', color: '#ffb84d' },
-      guard:  { x: W - 144 * u, y: by + 42 * u, r: 30 * u, label: '방어', color: '#5cc8ff' },
-      dash:   { x: W - 146 * u, y: by - 34 * u, r: 30 * u, label: '회피', color: '#ffcf5a' },
+      attack: { x: W - 62 * u,  y: by + 30 * u, r: 44 * u, label: '공격', color: '#ff7d7d' },
+      dash:   { x: W - 62 * u - 92 * u, y: by + 30 * u + 4 * u, r: 31 * u, label: '회피', color: '#ffcf5a' },
+      fire:   { x: W - 62 * u - 66 * u, y: by + 30 * u - 70 * u, r: 33 * u, label: '쏘기', color: '#ffb84d' },
+      guard:  { x: W - 62 * u + 6 * u,  y: by + 30 * u - 96 * u, r: 31 * u, label: '방어', color: '#5cc8ff' },
     },
   };
 }
@@ -698,13 +698,13 @@ function updateFighter(f, foe, dt) {
   f.strongT = Math.max(0, f.strongT - dt);
   let sp = SPEED * f.C.move * (buffOn(f, 'wind') ? 1.2 : 1) * (f.shoeT > 0 ? 1 + f.sOpt.move : 1) * (f.isCpu ? G.cpuSpd : 1) * (f.slowT > 0 ? 0.65 : 1);   // 캐릭터 바탕 속도 × 켜진 신발 × 깨비의 힘. 물 무기에 맞으면 느려짐
   // 달리기: 막대를 끝까지 밀면 신발의 첫 가속으로 튀어 나가 점점 최고 속도까지 빨라짐. 달리기 기력을 쓰고, 바닥나면 30 찰 때까지 걸음
-  const moving = f.state === 'idle' && !inp.guard && m > 0.15, run = moving && m > 0.6 && !f.tired && f.stam > 0;
+  const moving = f.state === 'idle' && !inp.guard && m > 0.15, run = moving && m > 0.45 && !f.tired && f.stam > 0;
   let mv = sp * WALK;
   if (run) { const R = f.run, top = sp * R.top; if (f.rs < top * R.launch) { f.rs = top * R.launch; if (!f.isCpu) fx('ring', f.x, f.y, { life: 0.25, r0: 8, r1: 30, w: 3, color: '127,224,255' }); }
     f.rs = Math.min(top, f.rs + top * (1 - R.launch) / R.accel * dt); mv = f.rs; f.stam = Math.max(0, f.stam - R.drain * dt);
     if (f.stam <= 0) { f.tired = true; if (!f.isCpu) addText(f.x, f.y - 30, '달리기 기력 바닥', '#7fe0ff'); } }
   else f.rs = 0;
-  if (f.tired && f.stam >= 30) f.tired = false;
+  if (f.tired && f.stam >= 20) f.tired = false;
   // 기력 회복(공격 기력·달리기 기력 같음): 서 있으면 빨리, 걸으면 조금. 달리기·공격·쏘기·필살기·방어·회피·맞는 중과 그 직후에는 안 참. 막기에 성공하면 한 번에 참
   if (f.state !== 'idle' || inp.guard) f.enWait = EN.wait;
   else { f.enWait = Math.max(0, f.enWait - dt); if (f.enWait <= 0 && !run) { const r = (moving ? EN.walk : EN.stand) * dt; f.en = Math.min(f.maxEn, f.en + r * (buffOn(f, 'wind') ? 1.5 : 1)); f.stam = Math.min(f.maxStam, f.stam + r); } }   // 캐릭터 바탕 속도 × 켜진 신발 × 깨비의 힘. 물 무기에 맞으면 느려짐
@@ -1001,7 +1001,7 @@ cv.addEventListener('pointerdown', ev => {
   else if (k === 'fire') { held.fire = ev.pointerId; fireDown(); }
   else if (k === 'dash') dashQueued = true;
   else if (k === 'shot') shotQueued = true;
-  else if (joy.id === null && x < W * 0.55 && y > L.joyZoneTop) { joy.id = ev.pointerId; joy.ox = x; joy.oy = y; joy.x = 0; joy.y = 0; }
+  else if (joy.id === null && x < W * 0.5 && y > L.joyZoneTop) { joy.id = ev.pointerId; joy.ox = x; joy.oy = y; joy.x = 0; joy.y = 0; }
 });
 cv.addEventListener('pointermove', ev => {
   if (ev.pointerId !== joy.id) return;
@@ -1317,7 +1317,7 @@ function drawHud() {
   ctx.fillStyle = 'rgba(8,12,20,.8)'; rr(W / 2 - 25, y - 10, 50, 32, 10); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.textAlign = 'center'; ctx.fillStyle = left <= 10 ? '#ff9a9a' : '#fff'; ctx.font = '800 19px system-ui, sans-serif'; ctx.fillText(String(left), W / 2, y + 13);
   ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.4)';
-  const vtxt = '시험판 v0.13 · 초당 ' + Math.round(fpsAvg) + '장';
+  const vtxt = '시험판 v0.14 · 초당 ' + Math.round(fpsAvg) + '장';
   if (L.portrait) ctx.fillText(vtxt, W / 2, H - 6); else { ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(10,16,28,.6)'; ctx.fillText(vtxt, 10, H - 6); }
 }
 
