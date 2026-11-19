@@ -120,9 +120,10 @@
       <summary>조작법·규칙 보기</summary>
     <ul class="how">
       <li><b>대기실</b>: 방 만들기에서 상대 수준을 고르고 시작합니다. 상점에서 구슬로 새 장비를 사고, 장비·강화에서 끼고 단계를 올립니다</li>
-      <li><b>왼쪽 아래</b>를 누른 채 끌면 이동. 화면이 내 캐릭터를 따라가고, 작은 지도에 나(파랑)·상대(빨강)·깨비가 보입니다</li>
+      <li><b>왼쪽 아래</b>를 누른 채 끌면 이동. 화면이 내 캐릭터를 따라가고, 작은 지도에 나(파랑)·상대(빨강)·깨비와 지금 화면에 보이는 범위(흰 네모)가 나옵니다</li>
       <li><b>공격</b>: 가까이서 휘두릅니다. 연속 3번째 타격이 상대를 멀리 밀어냅니다</li>
       <li><b>쏘기</b>: 멀리 쏩니다. 기력(노란 줄)을 쓰고, 누르고 있으면 이어서 쏩니다. 기력은 서 있을 때 빨리 찹니다</li>
+      <li><b>지형물</b>: 돌탑·석등·우물·짚더미·나무는 지나갈 수 없고 탄을 막아 줍니다. 밀고 가면 옆으로 돌아갑니다. 연못은 지나갈 수 없지만 탄은 넘어갑니다</li>
       <li><b>방어</b>: 누르고 있는 동안 앞쪽 공격과 탄을 막습니다 (오래 누르면 풀리고, 놓으면 다시 찹니다)</li>
       <li><b>회피</b>: 순간 이동하며 잠깐 무적</li>
       <li><b>한방</b>: 잠깐 모았다가 상대 쪽으로 쏘는 큰 공격 (6초마다)</li>
@@ -142,7 +143,7 @@
     <h1 class="h2">컴퓨터와 1:1</h1>
     <p class="sub">지금은 컴퓨터 상대 방만 됩니다. 친구와 함께 하는 방은 온라인 단계에서 넣습니다.</p>
     <div class="opt"><span class="glabel2">상대 수준</span><div class="grow" id="diffRow"></div><p class="gdesc" id="diffDesc"></p></div>
-    <div class="opt"><span class="glabel2">경기장</span><div class="grow"><button class="gbtn on" type="button" disabled style="background:#6fe3a5">넓은 눈밭</button><button class="gbtn" type="button" disabled>얼음 골짜기 (준비 중)</button></div><p class="gdesc" id="luckDesc"></p></div>
+    <div class="opt"><span class="glabel2">경기장</span><div class="grow"><button class="gbtn on" type="button" disabled style="background:#6fe3a5">깨비골 마당</button><button class="gbtn" type="button" disabled>다음 맵 (준비 중)</button></div><p class="gdesc" id="luckDesc"></p></div>
     <button class="big" id="startBtn">게임 시작</button>
     <button class="ghost" id="roomClose">대기실로</button>
   </div>
@@ -1049,7 +1050,8 @@ const VIEW = { ox: 0, oy: 0, cs: 1, top: 0, bot: 0 };
 function bakeMap(cs) {
   const z = cs * DPR, mk = img => { const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width / MAP.k * z)); c.height = Math.max(1, Math.round(img.height / MAP.k * z)); const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height); return c; };
   const pc = Math.round(MAP.cell / MAP.k * z), rows = Math.round(IMG.mapp.height / MAP.cell), p = document.createElement('canvas'); p.width = pc * MAP.cols; p.height = pc * rows; const px = p.getContext('2d'); px.imageSmoothingQuality = 'high'; px.drawImage(IMG.mapp, 0, 0, p.width, p.height);
-  mapCv = { g: mk(IMG.mapg), f: mk(IMG.mapf), p, pc }; perfSkip = 2;
+  const m = mapCv = { g: mk(IMG.mapg), f: mk(IMG.mapf), p, pc }; perfSkip = 2;
+  if (window.createImageBitmap) for (const k of ['g', 'f', 'p']) createImageBitmap(m[k]).then(b => { if (mapCv === m) m[k] = b; }, () => {});   // 다 줄인 그림은 굳혀 둠(붙일 때 더 빠름)
 }
 function blit(c, wx, wy, sx0, sy0, sw, sh) {   // 줄여 둔 그림(또는 그 한 칸)을 맵 자리 (wx, wy)에 점 그대로 붙임. 화면 밖 부분은 건너뜀
   const dx = Math.round((VIEW.ox + wx * VIEW.cs) * DPR), dy = Math.round((VIEW.oy + wy * VIEW.cs) * DPR), T = Math.round(VIEW.top * DPR), B = Math.round(VIEW.bot * DPR);
