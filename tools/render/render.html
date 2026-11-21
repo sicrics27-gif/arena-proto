@@ -158,22 +158,42 @@ function faceTex(st, expr) {   // 얼굴 그림: normal 보통 / shout 기합 / 
 const STYLES2 = {
   m: { fem: false, shine: 0x6f82c8, hair: 0x2f3a66, c1: 0x3f86f0, c2: 0x27324f, c3: 0x7a4a2c, acc: 0xff5a4d, eye: '#3f8cff', eye2: '#16306b', eye3: '#9fd8ff', brow: '#232a4a' },
   f: { fem: true, shine: 0xffd0df, hair: 0xff8fb0, c1: 0xe8394a, c2: 0xffffff, c3: 0x9a2f3c, acc: 0xffd24d, eye: '#ff7a3d', eye2: '#7a2416', eye3: '#ffd98a', brow: '#c2607c' },
+  // v0.15 새 캐릭터: 도담(묵직한 장사) · 소이(석궁) · 미르(지팡이 폭발) · 가온(지팡이 회복)
+  d: { fem: false, big: 1.13, hairS: 'short', outfit: 'armor', band: 0xe8b23a, skinC: 0xf2c9a8, shine: 0xb07a4e, hair: 0x5a3622, c1: 0x7a5a3a, c2: 0x3d3a36, c3: 0x4a3020, acc: 0xc9483c, eye: '#9a6a3a', eye2: '#3d2410', eye3: '#e8c68a', brow: '#3a2414' },
+  s: { fem: true, hairS: 'pony', outfit: 'jacket', shine: 0xc9f5d8, hair: 0x3fa06a, c1: 0x2f6f5a, c2: 0x2a3340, c3: 0x5a3a2a, acc: 0xffcf5a, eye: '#33b07a', eye2: '#0f4a33', eye3: '#bff5d8', brow: '#2a6a4a' },
+  r: { fem: false, hairS: 'long', outfit: 'robe', shine: 0xffffff, hair: 0xd8dde8, c1: 0x2f5fb8, c2: 0xe8eef8, c3: 0x2a3a6a, acc: 0x7fd8ff, eye: '#6fb8ff', eye2: '#1d3f7a', eye3: '#d8f0ff', brow: '#8a93a8' },
+  g: { fem: true, hairS: 'bun', outfit: 'robe', shine: 0xf0d8ff, hair: 0x8a5ac8, c1: 0xf4efe6, c2: 0x8a5ac8, c3: 0x6a4a3a, acc: 0x7ad8a0, eye: '#a87aff', eye2: '#4a2a8a', eye3: '#e8d8ff', brow: '#6a4a9a' },
 };
 function makeChar2(st, wt) {
   const root = new THREE.Group(), P = {};
-  const skin = toon(0xffe1cb), c1 = toon(st.c1), c2 = toon(st.c2), c3 = toon(st.c3), hairM = toon(st.hair), white = toon(0xffffff), acc = toon(st.acc), gold = toon(0xffcf5a);
+  const of = st.outfit || (st.fem ? 'dress' : 'jacket'), hs = st.hairS || (st.fem ? 'twin' : 'spiky');
+  const skin = toon(st.skinC || 0xffe1cb), c1 = toon(st.c1), c2 = toon(st.c2), c3 = toon(st.c3), hairM = toon(st.hair), white = toon(0xffffff), acc = toon(st.acc), gold = toon(0xffcf5a);
   const add = (par, m, x, y, z) => { m.position.set(x || 0, y || 0, z || 0); par.add(m); return m; };
   const cyl = (rt, rb, h, m) => mesh(new THREE.CylinderGeometry(rt, rb, h, 20), m);
   const body = new THREE.Group(); root.add(body); P.body = body;
   for (const s of [-1, 1]) {   // 다리
     const leg = new THREE.Group(); leg.position.set(s * 0.12, 0.5, 0); body.add(leg); P[s < 0 ? 'legR' : 'legL'] = leg;
-    add(leg, ink(cap(0.08, 0.2, st.fem ? skin : c2)), 0, -0.19, 0);
-    if (st.fem) add(leg, ink(cyl(0.09, 0.082, 0.2, white)), 0, -0.27, 0);            // 긴 양말
+    add(leg, ink(cap(0.08, 0.2, of === 'dress' ? skin : c2)), 0, -0.19, 0);
+    if (of === 'dress') add(leg, ink(cyl(0.09, 0.082, 0.2, white)), 0, -0.27, 0);            // 긴 양말
     add(leg, ink(cyl(0.098, 0.105, 0.1, c3)), 0, -0.36, 0);
     add(leg, ink(sph(0.118, c3, 1, 0.78, 1.5)), 0, -0.435, 0.05);                     // 신발
   }
   const torso = new THREE.Group(); torso.position.y = 0.5; body.add(torso); P.torso = torso;
-  if (st.fem) {
+  if (of === 'robe') {   // 긴 도포: 발목까지 내려오는 자락 + 넓은 소매 + 허리끈
+    add(torso, ink(cyl(0.2, 0.36, 0.58, c1)), 0, -0.08, 0);
+    add(torso, ink(sph(0.21, c1, 1.02, 1.12, 0.82)), 0, 0.27, 0);
+    add(torso, mesh(new THREE.BoxGeometry(0.07, 0.62, 0.03), c2), 0.06, 0.05, 0.2).rotation.z = -0.25;   // 앞섶 깃
+    add(torso, ink(mesh(new THREE.TorusGeometry(0.215, 0.035, 10, 32), c2)), 0, 0.1, 0).rotation.x = Math.PI / 2;
+    add(torso, ink(sph(0.05, acc)), 0.12, 0.08, 0.2);
+    add(torso, ink(mesh(new THREE.TorusGeometry(0.15, 0.05, 12, 30), c2)), 0, 0.47, 0).rotation.x = Math.PI / 2;
+  } else if (of === 'armor') {   // 가죽 조끼 + 어깨 보호대 + 굵은 허리띠
+    add(torso, ink(sph(0.225, c2, 1.05, 1.12, 0.82)), 0, 0.26, 0);
+    add(torso, ink(sph(0.205, c1, 1.0, 1.0, 0.86)), 0, 0.28, 0.02).scale.set(1.02, 1.05, 0.9);
+    for (const s of [-1, 1]) add(torso, ink(sph(0.11, toon(0x8a6a4a), 1.2, 0.7, 1)), s * 0.24, 0.42, 0);
+    add(torso, ink(cyl(0.22, 0.225, 0.11, c3)), 0, 0.05, 0);
+    add(torso, ink(mesh(new RoundedBoxGeometry(0.12, 0.09, 0.05, 2, 0.02), toon(0xe8c45a))), 0, 0.05, 0.215);
+    add(torso, ink(mesh(new THREE.TorusGeometry(0.15, 0.05, 12, 30), acc)), 0, 0.47, 0).rotation.x = Math.PI / 2;
+  } else if (of === 'dress') {
     add(torso, ink(cyl(0.17, 0.37, 0.3, c1)), 0, 0.06, 0);                            // 치마
     add(torso, ink(mesh(new THREE.TorusGeometry(0.355, 0.035, 10, 36), white)), 0, -0.085, 0).rotation.x = Math.PI / 2;
     add(torso, ink(sph(0.2, white, 1, 1.1, 0.8)), 0, 0.27, 0);                        // 윗옷
@@ -191,8 +211,8 @@ function makeChar2(st, wt) {
   add(torso, ink(cyl(0.065, 0.075, 0.1, skin)), 0, 0.5, 0);                          // 목
   for (const s of [-1, 1]) {   // 팔
     const arm = new THREE.Group(); arm.position.set(s * 0.25, 0.4, 0); torso.add(arm); P[s < 0 ? 'armR' : 'armL'] = arm;
-    add(arm, ink(cap(0.064, 0.15, st.fem ? white : c1)), 0, -0.12, 0);
-    add(arm, ink(cyl(0.074, 0.074, 0.05, st.fem ? c1 : white)), 0, -0.225, 0);
+    add(arm, ink(cap(0.064, 0.15, of === 'dress' ? white : of === 'armor' ? skin : c1)), 0, -0.12, 0);
+    add(arm, ink(of === 'robe' ? cyl(0.1, 0.12, 0.09, c1) : cyl(0.074, 0.074, 0.05, of === 'dress' ? c1 : of === 'armor' ? toon(0x8a6a4a) : white)), 0, -0.225, 0);
     P[s < 0 ? 'handR' : 'handL'] = add(arm, ink(sph(0.078, skin)), 0, -0.295, 0);
   }
   const sword = new THREE.Group(); sword.position.y = -0.295; sword.scale.setScalar(0.9); P.armR.add(sword); P.sword = sword;
@@ -232,7 +252,26 @@ function makeChar2(st, wt) {
   const hg = new THREE.Group(); head.add(hg);
   const capH = ink(mesh(new THREE.SphereGeometry(0.455, 40, 24, 0, Math.PI * 2, 0, Math.PI * 0.5), hairM), 0.022); add(hg, capH, 0, 0.02, -0.04); capH.rotation.x = -0.6;
   const shine = mesh(new THREE.TorusGeometry(0.3, 0.022, 6, 28, 1.5), toon(st.shine)); add(hg, shine, 0, 0.3, 0.02); shine.rotation.set(-1.05, 0, Math.PI / 2 - 0.75);   // 머리카락 윤기
-  if (st.fem) {
+  const bangs = () => [[-0.2, 0.17, 0.2], [0, 0.19, 0], [0.2, 0.17, -0.2]].forEach(([x, r, rz]) => { const b = ink(sph(r, hairM, 1.05, 0.7, 0.5)); add(hg, b, x, 0.235, 0.335 - Math.abs(x) * 0.22); b.rotation.set(0.35, 0, rz); });
+  const sideLocks = len => { for (const s of [-1, 1]) { const lock = ink(cap(0.06, len, hairM)); add(hg, lock, s * 0.385, -0.12 - (len - 0.3) / 2, 0.16); lock.rotation.z = s * 0.08; } };
+  if (hs === 'pony') {   // 뒤로 높게 묶은 머리
+    bangs(); sideLocks(0.22);
+    const tg = new THREE.Group(); tg.position.set(0, 0.28, -0.38); hg.add(tg); P.tailR = tg;
+    add(tg, ink(sph(0.07, acc)), 0, 0, 0.02);
+    const t1 = ink(cyl(0.11, 0.08, 0.36, hairM)); add(tg, t1, 0, -0.14, -0.12); t1.rotation.x = 0.6;
+    const t2 = ink(mesh(new THREE.ConeGeometry(0.09, 0.38, 14), hairM)); add(tg, t2, 0, -0.44, -0.24); t2.rotation.x = Math.PI + 0.35;
+  } else if (hs === 'bun') {   // 머리 위로 틀어 올린 머리 + 비녀
+    bangs(); sideLocks(0.26);
+    add(hg, ink(sph(0.17, hairM)), 0, 0.42, -0.12);
+    const pin = ink(cyl(0.018, 0.018, 0.5, acc)); add(hg, pin, 0, 0.45, -0.12); pin.rotation.z = 1.2;
+    add(hg, ink(sph(0.04, toon(0xffcf5a))), 0.23, 0.55, -0.12);
+  } else if (hs === 'long') {   // 등까지 내려오는 긴 머리
+    bangs(); sideLocks(0.42);
+    add(hg, ink(cyl(0.36, 0.3, 0.6, hairM)), 0, -0.18, -0.2).scale.set(1, 1, 0.55);
+  } else if (hs === 'short') {   // 짧게 친 머리 + 머리띠
+    for (const [x, rz] of [[-0.22, 0.3], [0, 0], [0.22, -0.3]]) { const c = ink(sph(0.15, hairM, 1.1, 0.55, 0.5)); add(hg, c, x, 0.3, 0.3 - Math.abs(x) * 0.25); c.rotation.set(0.5, 0, rz); }
+    if (st.band) { const bd = ink(mesh(new THREE.TorusGeometry(0.43, 0.04, 10, 40), toon(st.band))); add(hg, bd, 0, 0.17, 0); bd.rotation.x = Math.PI / 2 - 0.25; const kn = ink(cap(0.035, 0.18, toon(st.band))); add(hg, kn, 0.1, 0.12, -0.46); kn.rotation.set(-0.6, 0, -0.8); }
+  } else if (hs === 'twin') {
     [[-0.2, 0.17, 0.2], [0, 0.19, 0], [0.2, 0.17, -0.2]].forEach(([x, r, rz]) => { const b = ink(sph(r, hairM, 1.05, 0.7, 0.5)); add(hg, b, x, 0.235, 0.335 - Math.abs(x) * 0.22); b.rotation.set(0.35, 0, rz); });   // 앞머리
     for (const s of [-1, 1]) {
       const lock = ink(cap(0.06, 0.3, hairM)); add(hg, lock, s * 0.385, -0.12, 0.16); lock.rotation.z = s * 0.08;                    // 옆머리
@@ -246,6 +285,7 @@ function makeChar2(st, wt) {
     for (const s of [-1, 1]) { const c = ink(mesh(new THREE.ConeGeometry(0.09, 0.26, 10), hairM)); add(hg, c, s * 0.4, -0.02, 0.1); c.rotation.set(0.2, 0, Math.PI + s * 0.25); }   // 옆머리
     [[0.3, 0.36, -0.1, -0.7], [-0.28, 0.38, -0.12, 0.7], [0.02, 0.45, -0.16, 0.05], [0.2, 0.22, -0.36, -1.0], [-0.2, 0.22, -0.36, 1.0], [0, 0.18, -0.44, 0]].forEach(([x, y, z, rz]) => { const c = ink(mesh(new THREE.ConeGeometry(0.11, 0.28, 10), hairM)); add(hg, c, x, y, z); c.rotation.set(-0.9 - z, 0, rz); });   // 뻗친 머리
   }
+  if (st.big) body.scale.set(st.big, st.big * 0.97, st.big);
   root.userData.P = P; return root;
 }
 function pose2(root, anim, t) {
