@@ -107,7 +107,7 @@
 
 <div class="overlay" id="titleScreen">
   <div class="card">
-    <div class="tag">대기실 · 시험판 v0.15 · 이름·그림 모두 임시</div>
+    <div class="tag">대기실 · 시험판 v0.16 · 이름·그림 모두 임시</div>
     <div class="ltop"><div class="wallet" id="wallet"></div><div class="rec" id="rec"></div></div>
     <div class="lmid">
       <img class="pt" id="lobbyPt" alt="">
@@ -183,7 +183,7 @@
 
 <div class="overlay hidden" id="resultScreen">
   <div class="card">
-    <div class="tag">시험판 v0.15</div>
+    <div class="tag">시험판 v0.16</div>
     <p class="res" id="resText">승리!</p>
     <p class="sub" id="resSub"></p>
     <div class="loot" id="resLoot"></div>
@@ -281,7 +281,7 @@ const CHAR_KEYS = ['m', 'd', 'f', 's', 'r', 'g'];
 // 발동: 장비의 속성 효과와 기본 옵션은 확률로 켜짐. 안 켜지면 캐릭터의 기본 공격·기본 이동
 //   발동률(%) = 바탕 + 단계마다 + 같은 속성 세트(2개·3개) + 캐릭터와 어울리는 속성. 신발은 회피할 때 굴리고, 켜지면 shoeT초 동안 유지
 const PROC = { base: 40, perLv: 4, set2: 7, set3: 14, aff: 5, shoeT: 4 };
-const EN = { stand: 50, walk: 30, wait: 0.2, dash: 10, guard: 25, guardBolt: 8 };   // 기력 두 가지(공격 기력·달리기 기력) 모두: 서 있을 때·걸을 때 초당 회복, 행동 뒤 회복이 멈추는 시간. 회피에 드는 달리기 기력, 막기에 성공하면 차는 양
+const EN = { stand: 55, walk: 35, wait: 0.2, dash: 10, guard: 25, guardBolt: 8 };   // 기력 두 가지(공격 기력·달리기 기력) 모두: 서 있을 때·걸을 때 초당 회복, 행동 뒤 회복이 멈추는 시간. 회피에 드는 달리기 기력, 막기에 성공하면 차는 양
 const MELEE_COST = { w: 0, m: 0, c: 0, t: 0 };   // 근접(기본 공격)은 기력을 쓰지 않음. 기력은 쏘기·필살기·달리기·회피에만
 const HOLD = 0.28;                               // 쏘기를 이만큼 누르고 있으면 필살기
 const WALK = 0.55;                               // 걷기 속도(바탕 속도의 몇 배). 막대를 조금만 밀거나 달리기 기력이 바닥나면 걸음
@@ -471,7 +471,7 @@ function newFighter(x, y, color, isCpu, gear, lv, skin) {
   gear = Object.assign({}, gear, { wt: CHARS[skin].wt });
   const C = CHARS[skin], kw = lvK(lv.w), ks = lvK(lv.s), we = W_EL[gear.w], se = S_EL[gear.s];
   const sheet = skin; needSheet(skin);
-  return { x, y, kx: 0, ky: 0, face: isCpu ? Math.PI / 2 : -Math.PI / 2, hp: C.hp, maxHp: C.hp, en: C.en, maxEn: C.en, enWait: 0, stam: 100, maxStam: 100, rs: 0, tired: false, strongT: 0, ready: 0, color, isCpu,
+  return { x, y, kx: 0, ky: 0, face: isCpu ? Math.PI / 2 : -Math.PI / 2, hp: C.hp, maxHp: C.hp, en: C.en * 1.5, maxEn: C.en * 1.5, enWait: 0, stam: 150, maxStam: 150, rs: 0, tired: false, strongT: 0, ready: 0, color, isCpu,
            state: 'idle', t: 0, combo: 0, lastAtkEnd: -9, hitDone: false, atkId: 0,
            guardGauge: 1, guardLock: false, dashCd: 0, inv: 0, dashDir: 0,
            gear, lv, skin, sheet, C, W: WEAPONS[gear.wt], burn: 0, slowT: 0, frozen: 0, hot: 0, dashMax: 1.3, shotMax: 0.8,
@@ -533,6 +533,7 @@ function startAttack(f, foe) {
   if (f.en < cost) { noEn(f, '공격 기력 부족'); return; }
   f.en -= cost; f.combo = combo; f.pw = pw; if (pw) { f.procT.w = G.time; fx('ring', f.x, f.y, { life: 0.22, r0: 10, r1: 34, w: 4, color: ELEMS[f.gear.w].rgb }); }   // 무기 발동: 이번 한 번에 속성 효과와 기본 옵션이 붙음. 안 되면 기본 공격
   f.state = 'attack'; f.t = 0; f.hitDone = false; f.waveDone = false; f.atkId++;
+  f.slide = Math.min(480, Math.max(f.rs, Math.hypot(f.in.mx, f.in.my) > 0.15 ? SPEED * WALK : 0) * 0.95 + (combo === 3 ? 190 : 120));   // 달리던 힘 + 내딛는 걸음
   const d = Math.hypot(foe.x - f.x, foe.y - f.y);
   if (d < 160) f.face = Math.atan2(foe.y - f.y, foe.x - f.x);   // 가까우면 상대 쪽으로 조준 보정
   if (!f.isCpu && !sfx('sword', 0.3)) beep(f.combo === 3 ? 220 : 330, 0.05, 'triangle', 0.04);
@@ -737,10 +738,12 @@ function updateFighter(f, foe, dt) {
     f.rs = Math.min(top, f.rs + top * (1 - R.launch) / R.accel * dt); mv = f.rs; f.stam = Math.max(0, f.stam - R.drain * dt);
     if (f.stam <= 0) { f.tired = true; if (!f.isCpu) addText(f.x, f.y - 30, '달리기 기력 바닥', '#7fe0ff'); } }
   else f.rs *= Math.exp(-5 * dt);   // 잠깐 멈추거나 공격해도 붙은 속도가 바로 사라지지 않음(다시 달리면 그 속도부터)
-  if (f.tired && f.stam >= 20) f.tired = false;
+  if (f.tired && f.stam >= 25) f.tired = false;
   // 기력 회복(공격 기력·달리기 기력 같음): 서 있으면 빨리, 걸으면 조금. 달리기·공격·쏘기·필살기·방어·회피·맞는 중과 그 직후에는 안 참. 막기에 성공하면 한 번에 참
-  if (f.state !== 'idle' || inp.guard) f.enWait = EN.wait;
-  else { f.enWait = Math.max(0, f.enWait - dt); if (f.enWait <= 0 && !run) { const r = (moving ? EN.walk : EN.stand) * dt; f.en = Math.min(f.maxEn, f.en + r * (buffOn(f, 'wind') ? 1.5 : 1)); f.stam = Math.min(f.maxStam, f.stam + r); } }   // 캐릭터 바탕 속도 × 켜진 신발 × 깨비의 힘. 물 무기에 맞으면 느려짐
+  // v0.16: 공격 기력은 쏘기·필살기 모으는 중만 빼고 늘 참(서 있으면 빨리), 달리기 기력은 달리지 않을 때 참
+  if (f.state === 'fire' || f.state === 'aim' || f.state === 'dash') f.enWait = EN.wait;
+  else f.enWait = Math.max(0, f.enWait - dt);
+  if (f.enWait <= 0) { const still = f.state === 'idle' && !moving && !inp.guard; f.en = Math.min(f.maxEn, f.en + (still ? EN.stand : EN.walk) * (buffOn(f, 'wind') ? 1.5 : 1) * dt); if (!run) f.stam = Math.min(f.maxStam, f.stam + (still ? EN.stand : EN.walk) * dt); }   // 캐릭터 바탕 속도 × 켜진 신발 × 깨비의 힘. 물 무기에 맞으면 느려짐
   let vx = 0, vy = 0;
 
   if (f.state === 'stun') {
@@ -759,16 +762,16 @@ function updateFighter(f, foe, dt) {
     }
   } else if (f.state === 'attack') {
     f.t += dt; const tm = atkTiming(f);
-    vx = mx * sp * 0.35; vy = my * sp * 0.35;
+    { const dfo = Math.hypot(foe.x - f.x, foe.y - f.y); if (dfo < FR * 2 + 4 && f.hitDone) f.slide *= 0.5; f.slide *= Math.exp(-2.2 * dt); vx = Math.cos(f.face) * f.slide + mx * sp * 0.2; vy = Math.sin(f.face) * f.slide + my * sp * 0.2; }   // 앞으로 미끄러지며 침
     if (!f.hitDone && f.t >= tm.wind && f.t <= tm.act) {
       const d = Math.hypot(foe.x - f.x, foe.y - f.y);
       const an = Math.atan2(foe.y - f.y, foe.x - f.x);
       if (d < FR * 2 + f.W.melee.reach && Math.abs(angDiff(an, f.face)) < 1.05) { f.hitDone = true; resolveHit(f, foe); }
     }
     if (f.state === 'attack' && f.C.trait === 'wave' && f.combo === 3 && !f.waveDone && f.t >= tm.act) { f.waveDone = true; spawnBolt(f, 0.8); }   // 하람: 3번째 타격에 칼바람
-    if (f.state === 'attack' && f.t >= tm.end) { f.state = 'idle'; f.lastAtkEnd = G.time; }   // 막혀서 멈춘 경우는 건드리지 않음
+    if (f.state === 'attack' && f.t >= tm.end) { f.state = 'idle'; f.lastAtkEnd = G.time; f.rs = Math.max(f.rs, f.slide * 0.85); }   // 치고 나서도 그 속도로 이어 달림   // 막혀서 멈춘 경우는 건드리지 않음
   } else if (f.state === 'fire') {
-    f.t += dt; vx = mx * sp * 0.35; vy = my * sp * 0.35;   // 쏘는 동안은 천천히만 움직임
+    f.t += dt; if (f.slide === undefined || f.t < dt * 1.5) f.slide = f.rs * 0.8; f.slide *= Math.exp(-4 * dt); vx = Math.cos(f.mvDir || 0) * f.slide + mx * sp * 0.35; vy = Math.sin(f.mvDir || 0) * f.slide + my * sp * 0.35;   // 달리던 힘으로 미끄러지며 쏨
     const twin = f.C.trait === 'twin';
     if (!f.hitDone && f.t >= 0.1 * f.fireQ) { f.hitDone = true; spawnBolt(f); }
     if (twin && !f.hit2 && f.t >= 0.17 * f.fireQ) { f.hit2 = true; f.face = Math.atan2(foe.y - f.y, foe.x - f.x); spawnBolt(f, 0.6); }   // 소이: 두 발째
@@ -786,6 +789,7 @@ function updateFighter(f, foe, dt) {
         vx = mx * sp * 0.35; vy = my * sp * 0.35;
       } else {
         f.state = 'idle';
+        if (m > 0.15) f.mvDir = Math.atan2(my, mx);
         if (m > 0.15) { const mn = Math.min(1, m) === m ? m : Math.hypot(mx, my); vx = mx / mn * mv; vy = my / mn * mv; f.face = Math.atan2(my, mx); }
         if (inp.attack) startAttack(f, foe); else if (inp.fire) startFire(f, foe);
       }
@@ -1356,7 +1360,7 @@ function drawHud() {
   ctx.fillStyle = 'rgba(8,12,20,.8)'; rr(W / 2 - 25, y - 10, 50, 32, 10); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.textAlign = 'center'; ctx.fillStyle = left <= 10 ? '#ff9a9a' : '#fff'; ctx.font = '800 19px system-ui, sans-serif'; ctx.fillText(String(left), W / 2, y + 13);
   ctx.font = '11px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,.4)';
-  const vtxt = '시험판 v0.15 · 초당 ' + Math.round(fpsAvg) + '장';
+  const vtxt = '시험판 v0.16 · 초당 ' + Math.round(fpsAvg) + '장';
   if (L.portrait) ctx.fillText(vtxt, W / 2, H - 6); else { ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(10,16,28,.6)'; ctx.fillText(vtxt, 10, H - 6); }
 }
 
