@@ -467,6 +467,84 @@ for (const el of ['fire', 'water', 'wind', 'earth']) BUILD['b_' + el] = () => { 
 // name: 무엇을, half: 화면 반 크기(모형 단위), lookY: 바라보는 높이, size: 그림 크기, t: 돌리는 정도
 window.propShot = (name, half, lookY, size, t) => { const scene = makeScene(); scene.add(BUILD[name](t || 0)); return shoot(scene, makeCam(half, lookY), size).toDataURL('image/png'); };
 window.faceShot = (key, size) => { const scene = makeScene(), ch = makeChar(STYLES[key]); scene.add(ch); pose(ch, 'idle', 0); return shoot(scene, makeCam(0.66, 1.34), size).toDataURL('image/png'); };
+// <mob>
+// ───────── 몬스터 (v0.17 사냥 모드): 밤톨이·도토리 포수·호박 덩이·허수아비 대장 — 모두 우리가 새로 디자인 ─────────
+function mobBuild(type, f) {
+  const g = new THREE.Group(), w = f === 1 ? 1 : 0;   // f: 0·1 = 들썩이는 두 칸, 2 = 공격 자세(허수아비)
+  const add = (m, x, y, z, par) => { m.position.set(x || 0, y || 0, z || 0); (par || g).add(m); return m; };
+  const cyl = (rt, rb, h, m, seg) => mesh(new THREE.CylinderGeometry(rt, rb, h, seg || 16), m);
+  const eyeM = toon(0xffffff), pupM = new THREE.MeshBasicMaterial({ color: 0x1d1420 }), darkM = new THREE.MeshBasicMaterial({ color: 0x2b2236 });
+  const eyes = (y, z, dx, r, angry, par) => { for (const s of [-1, 1]) {
+    add(ink(sph(r, eyeM, 1, 1.15, 0.6), 0.012), s * dx, y, z, par); add(sph(r * 0.5, pupM, 1, 1.2, 0.6), s * dx * 0.9, y - r * 0.12, z + r * 0.42, par);
+    if (angry) { const b = mesh(new THREE.BoxGeometry(r * 2.4, r * 0.55, r * 0.5), darkM); add(b, s * dx, y + r * 1.05, z + r * 0.4, par); b.rotation.z = -s * 0.5; } } };
+  if (type === 'bam') {   // 밤톨이: 가시 돋친 밤송이. 갈라진 틈으로 밤색 얼굴이 보임
+    const body = new THREE.Group(); add(body, 0, 0.44 + 0.04 * w, 0); body.rotation.x = -0.3;
+    add(ink(sph(0.33, toon(0xa7b04a)), 0.02), 0, 0, 0, body);
+    const sm = toon(0xdccd5c), up = new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < 54; i++) { const y = 1 - (i + 0.5) / 54 * 2, r = Math.sqrt(1 - y * y), a = i * 2.39996, v = new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r);
+      if (v.z > 0.45 && Math.abs(v.y) < 0.55 && Math.abs(v.x) < 0.62) continue;   // 얼굴 자리는 비움
+      const c = mesh(new THREE.ConeGeometry(0.05, 0.22, 6), sm); c.position.copy(v.clone().multiplyScalar(0.41)); c.quaternion.setFromUnitVectors(up, v); body.add(c); }
+    add(ink(sph(0.21, toon(0x9a5a30), 1.12, 0.95, 0.7), 0.012), 0, -0.01, 0.2, body);
+    add(sph(0.09, toon(0xc98a52), 1.2, 0.6, 0.5), -0.05, 0.1, 0.3, body);   // 얼굴 윤기
+    eyes(0.0, 0.34, 0.085, 0.056, true, body);
+    const mo = mesh(new THREE.BoxGeometry(0.1, 0.022, 0.02), darkM); add(mo, 0, -0.1, 0.345, body);
+    for (const s of [-1, 1]) add(ink(sph(0.09, toon(0x6a3a20), 1.15, 0.7, 1.4), 0.012), s * 0.16, 0.06, 0.07 + s * (w ? 0.06 : -0.06));
+  } else if (type === 'doto') {   // 도토리 포수: 모자 쓴 도토리. 작은 도토리를 던짐
+    const body = new THREE.Group(); add(body, 0, 0.44 + 0.03 * w, 0); body.rotation.x = -0.22;
+    add(ink(sph(0.27, toon(0xd49a55), 1, 1.18, 1), 0.02), 0, 0, 0, body);
+    add(ink(mesh(new THREE.ConeGeometry(0.1, 0.14, 12), toon(0xd49a55)), 0.012), 0, -0.36, 0, body).rotation.x = Math.PI;
+    add(sph(0.1, toon(0xeec07e), 1, 1.3, 0.5), -0.09, 0.02, 0.2, body);
+    const capG = new THREE.Group(); add(capG, 0, 0.14, -0.02, body); capG.rotation.z = -0.12; capG.rotation.x = -0.25;
+    add(ink(mesh(new THREE.SphereGeometry(0.31, 24, 14, 0, Math.PI * 2, 0, Math.PI * 0.5), toon(0x7a5232)), 0.02), 0, 0, 0, capG);
+    for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283; add(sph(0.05, toon(0x8f6440)), Math.cos(a) * 0.26, 0.07, Math.sin(a) * 0.26, capG); }
+    for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283 + 0.4; add(sph(0.045, toon(0x8f6440)), Math.cos(a) * 0.15, 0.24, Math.sin(a) * 0.15, capG); }
+    add(ink(cyl(0.025, 0.035, 0.14, toon(0x5a3a22), 8), 0.012), 0.02, 0.36, 0, capG).rotation.z = -0.3;
+    eyes(-0.02, 0.245, 0.09, 0.052, false, body);
+    const mo = mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 12, Math.PI), darkM); add(mo, 0, -0.1, 0.262, body); mo.rotation.z = Math.PI;
+    add(ink(sph(0.06, toon(0xd49a55)), 0.012), -0.3, -0.02 + 0.02 * w, 0.06, body);
+    add(ink(sph(0.06, toon(0xd49a55)), 0.012), 0.3, 0.14 + 0.05 * w, 0.1, body);
+    const am = new THREE.Group(); add(am, 0.34, 0.27 + 0.05 * w, 0.12, body);   // 손에 든 작은 도토리
+    add(ink(sph(0.075, toon(0xc98a45), 1, 1.15, 1), 0.012), 0, 0, 0, am); add(ink(mesh(new THREE.SphereGeometry(0.085, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), toon(0x6a4628)), 0.012), 0, 0.03, 0, am);
+    for (const s of [-1, 1]) add(ink(sph(0.08, toon(0x7a5232), 1.15, 0.7, 1.4), 0.012), s * 0.13, 0.055, 0.06 + s * (w ? 0.05 : -0.05));
+  } else if (type === 'hobak') {   // 호박 덩이: 납작하고 골이 진 늙은 호박. 머리로 들이받음
+    const body = new THREE.Group(); add(body, 0, 0.4 + 0.03 * w, 0); body.scale.set(1.0, 0.86 + 0.03 * w, 1.0); body.rotation.x = -0.28;
+    for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283; add(ink(sph(0.25, toon(i % 2 ? 0xef9a3c : 0xe5842a), 0.7, 1.05, 0.7), 0.02), Math.cos(a) * 0.3, 0, Math.sin(a) * 0.3, body).rotation.y = -a; }
+    add(sph(0.3, toon(0xe5842a), 1.2, 0.9, 1.2), 0, 0, 0, body);
+    add(ink(cyl(0.05, 0.085, 0.18, toon(0x5f8f48), 8), 0.012), 0.02, 0.3, 0, body).rotation.z = -0.25;
+    const lf = ink(sph(0.11, toon(0x6fa856), 1.5, 0.25, 0.9), 0.012); add(lf, -0.13, 0.3, 0.04, body); lf.rotation.z = 0.5;
+    eyes(0.03, 0.47, 0.13, 0.066, true, body);
+    for (let i = 0; i < 4; i++) { const t = mesh(new THREE.ConeGeometry(0.035, 0.07, 4), darkM); add(t, -0.105 + i * 0.07, -0.13, 0.5, body); t.rotation.z = i % 2 ? Math.PI : 0; }
+    for (const s of [-1, 1]) add(ink(sph(0.1, toon(0xb8601e), 1.2, 0.7, 1.4), 0.012), s * 0.2, 0.06, 0.14 + s * (w ? 0.06 : -0.06));
+  } else if (type === 'heosu') {   // 허수아비 대장: 밀짚모자·자루 얼굴·짚 몸통. 외다리로 통통 뛰며 팔을 휘두름
+    const straw = toon(0xdcb650), straw2 = toon(0xc99a3c), cloth = toon(0xb5352c), wood = toon(0x6b4a33), sack = toon(0xecdcb4);
+    const hop = 0.06 * w, atk = f === 2, B = new THREE.Group(); add(B, 0, hop, 0); if (atk) B.rotation.z = 0.06;
+    add(ink(cyl(0.055, 0.065, 1.0, wood, 8), 0.02), 0, 0.5, 0, B);
+    add(ink(sph(0.11, wood, 1.2, 0.5, 1.2), 0.012), 0, 0.03, 0, B);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283, c = mesh(new THREE.ConeGeometry(0.07, 0.34, 6), i % 2 ? straw : straw2); add(c, Math.cos(a) * 0.24, 0.86, Math.sin(a) * 0.24, B); c.rotation.set(Math.sin(a) * 0.35 + Math.PI, 0, -Math.cos(a) * 0.35); }   // 아랫자락 짚
+    add(ink(cyl(0.27, 0.36, 0.62, cloth, 16), 0.022), 0, 1.22, 0, B);
+    add(mesh(new THREE.BoxGeometry(0.16, 0.16, 0.03), toon(0x3f79e8)), -0.12, 1.14, 0.325, B).rotation.z = 0.2;   // 기운 헝겊
+    add(ink(mesh(new THREE.TorusGeometry(0.335, 0.035, 8, 24), toon(0x8a6a3a)), 0.012), 0, 1.0, 0, B).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283, c = mesh(new THREE.ConeGeometry(0.06, 0.22, 6), straw); add(c, Math.cos(a) * 0.2, 1.56, Math.sin(a) * 0.2, B); c.rotation.set(-Math.sin(a) * 1.2, 0, Math.cos(a) * 1.2); }   // 목 둘레 짚
+    for (const s of [-1, 1]) { const A = new THREE.Group(); add(A, s * 0.2, 1.4, 0, B); A.rotation.z = s * (atk ? 0.95 : -0.08 + 0.1 * w);
+      add(ink(cyl(0.05, 0.05, 0.9, wood, 8), 0.015), s * 0.45, 0, 0, A).rotation.z = Math.PI / 2;
+      add(ink(cyl(0.12, 0.15, 0.5, cloth, 12), 0.02), s * 0.36, 0, 0, A).rotation.z = Math.PI / 2;
+      for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283, c = mesh(new THREE.ConeGeometry(0.05, 0.3, 6), i % 2 ? straw : straw2); add(c, s * (0.78 + 0.06 * Math.cos(a)), Math.sin(a) * 0.09, Math.cos(a) * 0.09, A); c.rotation.z = -s * Math.PI / 2 + Math.sin(a) * 0.3; } }
+    const H = new THREE.Group(); add(H, 0, 1.86, 0.02, B); H.rotation.z = atk ? -0.1 : 0.05; H.rotation.x = -0.32;
+    add(ink(sph(0.34, sack, 1, 0.95, 0.95), 0.022), 0, 0, 0, H);
+    add(ink(sph(0.062, pupM), 0.012), -0.13, 0.03, 0.3, H);   // 단추 눈
+    for (const r of [0.75, -0.75]) { const b = mesh(new THREE.BoxGeometry(0.17, 0.035, 0.03), darkM); add(b, 0.13, 0.03, 0.31, H); b.rotation.z = r; }   // 꿰맨 눈
+    for (const s of [-1, 1]) { const b = mesh(new THREE.BoxGeometry(0.19, 0.045, 0.03), darkM); add(b, s * 0.13, 0.15, 0.3, H); b.rotation.z = -s * 0.45; }
+    for (let i = 0; i < 5; i++) { const b = mesh(new THREE.BoxGeometry(0.09, 0.03, 0.03), darkM); add(b, -0.14 + i * 0.07, -0.13 + (i % 2 ? 0.02 : -0.02), 0.31, H); b.rotation.z = i % 2 ? 0.7 : -0.7; }   // 꿰맨 입
+    const HT = new THREE.Group(); add(HT, 0, 0.2, -0.08, H); HT.rotation.x = -0.35;   // 모자는 뒤로 젖혀 얼굴이 보이게
+    add(ink(cyl(0.54, 0.58, 0.045, straw2, 28), 0.02), 0, 0, 0, HT);
+    add(ink(mesh(new THREE.ConeGeometry(0.34, 0.36, 24), straw), 0.02), 0, 0.2, 0, HT);
+    add(mesh(new THREE.TorusGeometry(0.29, 0.035, 8, 24), cloth), 0, 0.05, 0, HT).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 3; i++) { const c = mesh(new THREE.ConeGeometry(0.03, 0.2, 5), straw2); add(c, -0.06 + i * 0.06, 0.44, 0, HT); c.rotation.z = (i - 1) * -0.4; }
+  }
+  return g;
+}
+window.mobShot = (type, f, half, lookY, size) => { const scene = makeScene2(), m = mobBuild(type, f); m.rotation.y = 0.32; scene.add(m); return shoot2(scene, makeCam(half, lookY), size).toDataURL('image/png'); };
+// </mob>
 // <sample>
 // ───────── 견본 장면: 비스듬히 내려다보는 입체 화면 '깨비골 마당' (우리 배치·우리 모형) ─────────
 window.sampleScene = (W, H, half, pitchDeg, lookZ) => {

@@ -10,3 +10,4 @@
 - `build_chars3.py`: 두 캐릭터가 둔기(m)·석궁(c)·지팡이(t)를 든 그림(`chr_m_m` … `chr_f_t`)을 찍음(v0.11). 검을 든 그림은 `build_chars2.py`. 돌리는 법: `python3 build_chars3.py ../../assets`
 - `build_map.py`: 맵 '깨비골 마당'을 45도로 찍어 `map_g`(바닥)·`map_f`(늘 앞에 오는 것)·`map_p`(지형물 묶음)를 만듦(v0.12). 맵 모형은 `render.html`의 `mapBake`. 지형물 자리·막는 반지름은 `index.html`의 `OBS`와 맞춰야 함
 - `build_chars45.py`: 캐릭터 8장을 맵과 같은 45도로 다시 찍음(v0.12). 각도를 바꾸면 `index.html` `META`의 `charAy`도 바꿔야 함(45도 = 0.6886)
+- `build_mobs.py`: 사냥 모드 몬스터 묶음 `mob.webp`를 찍음(v0.17). 얼굴이 보이게 30도로 찍음. 돌리면 조각 자리표를 화면에 찍어 주므로 `index.html`의 `MOBSPR`에 옮겨 적어야 함. 돌리는 법: `python3 build_mobs.py ../../assets`
